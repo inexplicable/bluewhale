@@ -5,12 +5,14 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
+import com.google.common.eventbus.AllowConcurrentEvents;
 import com.google.common.eventbus.Subscribe;
 import org.ebaysf.bluewhale.Cache;
 import org.ebaysf.bluewhale.command.Get;
 import org.ebaysf.bluewhale.command.Put;
 import org.ebaysf.bluewhale.command.PutImpl;
 import org.ebaysf.bluewhale.document.BinDocument;
+import org.ebaysf.bluewhale.event.PostInvalidateAllEvent;
 import org.ebaysf.bluewhale.event.PostSegmentSplitEvent;
 import org.ebaysf.bluewhale.event.SegmentSplitEvent;
 import org.ebaysf.bluewhale.serialization.Serializer;
@@ -20,6 +22,7 @@ import org.javatuples.Pair;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.LongBuffer;
+import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -315,6 +318,18 @@ public class LeafSegment extends AbstractSegment {
         if(event.getSource() == this){
 
             belongsTo().getEventBus().unregister(this);
+            _manager.freeUpBuffer(_mmap);
+        }
+    }
+
+    @Subscribe
+    @AllowConcurrentEvents
+    protected void onPostInvalidateAll(final PostInvalidateAllEvent event){
+
+        final Collection<Segment> abandons = event.getSource();
+
+        if(abandons.contains(this)){
+
             _manager.freeUpBuffer(_mmap);
         }
     }

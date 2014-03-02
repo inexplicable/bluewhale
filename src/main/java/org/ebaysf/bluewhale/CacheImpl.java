@@ -14,6 +14,7 @@ import org.ebaysf.bluewhale.command.PutAsInvalidate;
 import org.ebaysf.bluewhale.command.PutImpl;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.document.BinDocumentFactory;
+import org.ebaysf.bluewhale.event.PostInvalidateAllEvent;
 import org.ebaysf.bluewhale.event.PostSegmentSplitEvent;
 import org.ebaysf.bluewhale.event.SegmentSplitEvent;
 import org.ebaysf.bluewhale.segment.LeafSegment;
@@ -27,6 +28,7 @@ import org.ebaysf.bluewhale.storage.UsageTrack;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -40,6 +42,7 @@ import java.util.concurrent.ExecutionException;
 public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
 
     private final File _local;
+    private final int _concurrencyLevel;
     private final Serializer<K> _keySerializer;
     private final Serializer<V> _valSerializer;
     private final SegmentsManager _manager;
@@ -63,6 +66,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
                      final List<BinJournal> loadings) throws IOException {
 
         _local = Preconditions.checkNotNull(local);
+        _concurrencyLevel = concurrencyLevel;Preconditions.checkArgument(concurrencyLevel > 0 && concurrencyLevel < 16);
         _keySerializer = Preconditions.checkNotNull(keySerializer);
         _valSerializer = Preconditions.checkNotNull(valSerializer);
         _eventBus = Preconditions.checkNotNull(eventBus);
@@ -149,7 +153,15 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
     @Override
     public ImmutableMap<K, V> getAllPresent(Iterable<?> keys) {
 
-        return null;
+        Preconditions.checkArgument(keys != null);
+
+        final ImmutableMap.Builder<K, V> builder = ImmutableMap.builder();
+
+        for(Object key : keys){
+            builder.put((K)key, getIfPresent(key));
+        }
+
+        return builder.build();
     }
 
     @Override
@@ -172,6 +184,12 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
 
     @Override
     public void putAll(Map<? extends K, ? extends V> m) {
+
+        Preconditions.checkArgument(m != null);
+
+        for(Map.Entry<? extends K, ? extends V> entry : m.entrySet()){
+            put(entry.getKey(), entry.getValue());
+        }
 
     }
 
@@ -196,11 +214,28 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
     @Override
     public void invalidateAll(Iterable<?> keys) {
 
+        Preconditions.checkArgument(keys != null);
+
+        for(Object key : keys){
+
+            invalidate(key);
+        }
     }
 
     @Override
     public void invalidateAll() {
 
+        final Collection<Segment> abandons = _navigableSegments.asMapOfRanges().values();
+
+        try {
+            //the fastest way to invalidate everything is to wipe the segments clean.
+            _navigableSegments = initSegments(_local, _concurrencyLevel);
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        getEventBus().post(new PostInvalidateAllEvent(abandons, this));
     }
 
     @Override
@@ -222,7 +257,8 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
 
     @Override
     public ConcurrentMap<K, V> asMap() {
-        return null;
+
+        throw new UnsupportedOperationException("You don't really want a huge map like this :)");
     }
 
     @Override
