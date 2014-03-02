@@ -330,6 +330,7 @@ public class LeafSegment extends AbstractSegment {
 
         if(abandons.contains(this)){
 
+            belongsTo().getEventBus().unregister(this);
             _manager.freeUpBuffer(_mmap);
         }
     }
