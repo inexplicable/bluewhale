@@ -11,7 +11,7 @@ import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import org.ebaysf.bluewhale.command.GetImpl;
 import org.ebaysf.bluewhale.command.PutAsInvalidate;
-import org.ebaysf.bluewhale.command.PutImpl;
+import org.ebaysf.bluewhale.command.PutAsIs;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.document.BinDocumentFactory;
 import org.ebaysf.bluewhale.event.PostInvalidateAllEvent;
@@ -175,7 +175,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
 
         try {
 
-            zone.put(new PutImpl(key, value, hashCode, System.nanoTime()));
+            zone.put(new PutAsIs(key, value, hashCode, System.nanoTime()));
         }
         catch (Exception ex) {
 

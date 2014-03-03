@@ -41,37 +41,31 @@ public abstract class AbstractSegment implements Segment {
         _lock = new ReentrantLock(true);
     }
 
-    @Override
-    public Range<Integer> range() {
+    public @Override Range<Integer> range() {
 
         return _range;
     }
 
-    @Override
-    public <K, V> Cache<K, V> belongsTo() {
+    public @Override <K, V> Cache<K, V> belongsTo() {
         return (Cache)_belongsTo;
     }
 
-    @Override
-    public <K> Serializer<K> getKeySerializer() {
+    public @Override <K> Serializer<K> getKeySerializer() {
 
         return (Serializer)_belongsTo.getKeySerializer();
     }
 
-    @Override
-    public <V> Serializer<V> getValSerializer() {
+    public @Override <V> Serializer<V> getValSerializer() {
 
         return (Serializer)_belongsTo.getValSerializer();
     }
 
-    @Override
-    public BinStorage getStorage() {
+    public @Override BinStorage getStorage() {
 
         return _belongsTo.getStorage();
     }
 
-    @Override
-    public List<Segment> getChildren() {
+    public @Override List<Segment> getChildren() {
         if(isLeaf()){
             return Collections.emptyList();
         }
@@ -80,14 +74,12 @@ public abstract class AbstractSegment implements Segment {
         }
     }
 
-    @Override
-    public boolean isLeaf() {
+    public @Override boolean isLeaf() {
 
         return _lower == null || _upper == null;
     }
 
-    @Override
-    public int size() {
+    public @Override int size() {
 
         try{
             _lock.lock();
@@ -102,8 +94,7 @@ public abstract class AbstractSegment implements Segment {
         }
     }
 
-    @Override
-    public Segment route(final int segmentCode) {
+    public @Override Segment route(final int segmentCode) {
 
         if(isLeaf()){
             return this;
@@ -123,10 +114,20 @@ public abstract class AbstractSegment implements Segment {
     }
 
 
-    @Override
-    public boolean using(BinDocument document) {
+    public @Override boolean using(BinDocument document) {
 
         return route(getSegmentCode(document.getHashCode())).using(document);
+    }
+
+    public @Override String toString(){
+        return new StringBuilder()
+                .append("[journal]")
+                .append(_range)
+                .append("[leaf:")
+                .append(isLeaf())
+                .append("][size:")
+                .append(size())
+                .append("]").toString();
     }
 
     public static int getSegmentCode(final int hashCode) {

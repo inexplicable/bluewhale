@@ -13,7 +13,7 @@ import java.nio.ByteBuffer;
  * Time: 9:23 PM
  * To change this template use File | Settings | File Templates.
  */
-public class PutAsInvalidate extends PutImpl {
+public class PutAsInvalidate extends PutAsIs {
 
     public static final ByteBuffer ZERO_BYTE_BUFFER = ByteBuffer.allocate(0);
 

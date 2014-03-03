@@ -9,24 +9,24 @@ import java.nio.ByteBuffer;
 /**
  * Created by huzhou on 2/28/14.
  */
-public class PutImpl implements Put {
+public class PutAsIs implements Put {
 
     private final Object _key;
     private final Object _val;
     private final int _hashCode;
     private final long _lastModified;
 
-    public <K, V> PutImpl(final K key,
-                   final V val,
-                   final int hashCode) {
+    public <K, V> PutAsIs(final K key,
+                          final V val,
+                          final int hashCode) {
 
         this(key, val, hashCode, System.nanoTime());
     }
 
-    public <K, V> PutImpl(final K key,
-                   final V val,
-                   final int hashCode,
-                   final long lastModified) {
+    public <K, V> PutAsIs(final K key,
+                          final V val,
+                          final int hashCode,
+                          final long lastModified) {
 
         _key = key;
         _val = val;

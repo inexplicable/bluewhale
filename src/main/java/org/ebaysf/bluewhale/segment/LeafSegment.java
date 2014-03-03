@@ -10,7 +10,7 @@ import com.google.common.eventbus.Subscribe;
 import org.ebaysf.bluewhale.Cache;
 import org.ebaysf.bluewhale.command.Get;
 import org.ebaysf.bluewhale.command.Put;
-import org.ebaysf.bluewhale.command.PutImpl;
+import org.ebaysf.bluewhale.command.PutAsIs;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.event.PostInvalidateAllEvent;
 import org.ebaysf.bluewhale.event.PostSegmentSplitEvent;
@@ -67,7 +67,7 @@ public class LeafSegment extends AbstractSegment {
             final long beforeLoad = System.nanoTime();
             final Future<V> value = belongsTo().getExecutor().submit(get.<V>getValueLoader());
             try{
-                put(new PutImpl(get.getKey(), value.get(), get.getHashCode()));
+                put(new PutAsIs(get.getKey(), value.get(), get.getHashCode()));
                 //we do the blocking put, and then try calling get again
             }
             catch(InterruptedException e){
@@ -330,7 +330,7 @@ public class LeafSegment extends AbstractSegment {
 
         if(abandons.contains(this)){
 
-            belongsTo().getEventBus().unregister(this);
+            _belongsTo.getEventBus().unregister(this);
             _manager.freeUpBuffer(_mmap);
         }
     }
