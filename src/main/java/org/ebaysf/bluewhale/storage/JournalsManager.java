@@ -3,6 +3,7 @@ package org.ebaysf.bluewhale.storage;
 import com.google.common.cache.RemovalCause;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
+import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import org.ebaysf.bluewhale.util.Files;
 import org.ebaysf.bluewhale.util.Maps;
@@ -20,7 +21,8 @@ public class JournalsManager {
 	private static final Logger LOG = Logger.getLogger(JournalsManager.class.getName());
 
     private final File _local;
-    private final ListeningExecutorService _executor;
+    protected final EventBus _eventBus;
+    protected final ListeningExecutorService _executor;
 
     private final RemovalListener<ByteBuffer, BinJournal> _journalsNoLongUsedListener = new RemovalListener<ByteBuffer, BinJournal>() {
         public @Override void onRemoval(RemovalNotification<ByteBuffer, BinJournal> notification) {
@@ -36,9 +38,11 @@ public class JournalsManager {
             Maps.INSTANCE.newIdentityWeakValuesCache(_journalsNoLongUsedListener);
 
     public JournalsManager(final File local,
+                           final EventBus eventBus,
                            final ListeningExecutorService executor){
 
         _local = local;
+        _eventBus = eventBus;
         _executor = executor;
     }
 

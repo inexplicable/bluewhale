@@ -3,26 +3,34 @@ package org.ebaysf.bluewhale.storage;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Range;
+import com.google.common.eventbus.Subscribe;
+import com.google.common.math.IntMath;
 import com.google.common.primitives.Longs;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.document.BinDocumentFactory;
+import org.ebaysf.bluewhale.event.DocumentLengthAnticipatedEvent;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.math.RoundingMode;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.Iterator;
+import java.util.PriorityQueue;
+import java.util.logging.Logger;
 
 /**
  * Created by huzhou on 2/27/14.
  */
 public class FileChannelBinJournal extends AbstractBinJournal {
 
+    private static final Logger LOG = Logger.getLogger(FileChannelBinJournal.class.getName());
+
     protected final RandomAccessFile _raf;
     protected final FileChannel _fch;
-    protected int _documentLength95 = 256;
+    protected int _documentLength90 = 256;
 
     public FileChannelBinJournal(final File local,
                                  final Range<Integer> journalRange,
@@ -30,14 +38,55 @@ public class FileChannelBinJournal extends AbstractBinJournal {
                                  final BinDocumentFactory factory,
                                  final int length,
                                  final int size,
-                                 final int documentLength95) throws FileNotFoundException {
+                                 final int documentLength90) throws FileNotFoundException {
 
         super(local, JournalState.FileChannelReadOnly, journalRange, manager, factory, length);
 
         _raf = new RandomAccessFile(local(), "r");
         _fch = _raf.getChannel();
         _size = size;
-        _documentLength95 = documentLength95;
+
+        if(documentLength90 < 0){
+            _manager._eventBus.register(this);
+            _manager._executor.submit(new Runnable() {
+                @Override
+                public void run() {
+
+                    final BinJournal self = FileChannelBinJournal.this;
+
+                    LOG.fine("[anticipating] ".concat(self.toString()));
+                    //use average length 1st, we'll then use 90% or better to find a better idea.
+                    final int mostLengthy = IntMath.divide(self.getDocumentSize() * 9, 10, RoundingMode.FLOOR);
+                    Preconditions.checkState(mostLengthy > 0);
+
+                    final PriorityQueue<Long> minHeap = new PriorityQueue<Long>(mostLengthy);
+                    final Iterator<BinDocument> it = self.iterator();
+
+                    while(it.hasNext() && minHeap.size() <= mostLengthy){
+                        BinDocument doc = it.next();
+                        minHeap.offer(Long.valueOf(doc.getLength()));
+                    }
+                    while(it.hasNext()){
+                        BinDocument doc = it.next();
+                        final Long length = Long.valueOf(doc.getLength());
+                        if(minHeap.peek().longValue() < length.longValue()){
+                            minHeap.poll();
+                            minHeap.offer(length);
+                        }
+                    }
+                    //return the least/head of the minHeap, which is larger than 90% of the documents in this journal
+                    final Integer greaterThan90Percents =  minHeap.poll().intValue();
+                    LOG.fine(new StringBuilder()
+                            .append("[anticipated] ").append(self).append(" will use:")
+                            .append(greaterThan90Percents).append(" Bytes for future reads").toString());
+
+                    _manager._eventBus.post(new DocumentLengthAnticipatedEvent(FileChannelBinJournal.this, greaterThan90Percents.intValue()));
+                }
+            });
+        }
+        else{
+            _documentLength90 = documentLength90;
+        }
     }
 
     public @Override int append(final BinDocument document) throws IOException {
@@ -47,7 +96,7 @@ public class FileChannelBinJournal extends AbstractBinJournal {
 
     public @Override BinDocument read(int offset) throws IOException {
 
-        return _factory.getReader(_fch, offset, _documentLength95).read();
+        return _factory.getReader(_fch, offset, _documentLength90).read();
     }
 
     public @Override ByteBuffer getMemoryMappedBuffer() {
@@ -62,6 +111,14 @@ public class FileChannelBinJournal extends AbstractBinJournal {
         }
         catch(IOException e){
             return Iterators.emptyIterator();
+        }
+    }
+
+    @Subscribe
+    protected void onDocumentLengthAnticipated(final DocumentLengthAnticipatedEvent event){
+        if(event.getSource() == this){
+            _manager._eventBus.unregister(this);
+            _documentLength90 = event.getDocumentLengthAnticipated();
         }
     }
 
@@ -81,7 +138,7 @@ public class FileChannelBinJournal extends AbstractBinJournal {
         public BinDocumentBlockIterator(final int offset) throws IOException{
             _fileLength = _fch.size();
             //block size must be [anticipatedLength, MAX_BLOCK_SIZE]
-            _block = ByteBuffer.allocate(Math.max(_documentLength95, Math.min(MAX_BLOCK_SIZE, _documentLength95 << 4)));
+            _block = ByteBuffer.allocate(Math.max(_documentLength90, Math.min(MAX_BLOCK_SIZE, _documentLength90 << 4)));
 
             _offsetAtFile = offset;
             _offsetAtFile += _fch.read(_block, offset);

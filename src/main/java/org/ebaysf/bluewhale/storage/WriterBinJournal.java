@@ -37,14 +37,16 @@ public class WriterBinJournal extends ByteBufferBinJournal {
 
         //-1 when the mmap is filled up
         if(offset + length >= _mmap.limit()){
+            //disallow further write after offset immediately
+            _mmap.limit(offset);
             return -1;
         }
-
-        writer.write(_mmap, offset);
-
-        _size += 1;
-
-        return offset;
+        //do the actual write when there's enough buffer
+        else{
+            writer.write(_mmap, offset);
+            _size += 1;
+            return offset;
+        }
     }
 
 }
