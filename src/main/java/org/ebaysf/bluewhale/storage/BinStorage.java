@@ -1,11 +1,9 @@
 package org.ebaysf.bluewhale.storage;
 
-import com.google.common.collect.Range;
 import org.ebaysf.bluewhale.document.BinDocument;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Queue;
 
 /**
  * Created by huzhou on 2/26/14.
@@ -46,6 +44,8 @@ public interface BinStorage extends Iterable<BinJournal> {
     int getJournalLength();
 
     int getMaxJournals();
+
+    int getMaxMemoryMappedJournals();
 
     int getEvictedJournals();
 

@@ -75,10 +75,11 @@ public class BinStorageImpl implements BinStorage {
         Preconditions.checkArgument(maxJournals > 1);
         Preconditions.checkArgument(maxMemoryMappedJournals > 1 && maxMemoryMappedJournals < maxJournals);
 
-        _manager = new JournalsManager(_local, _executor);
+        _manager = new JournalsManager(_local, _eventBus, _executor);
         _journalLength = journalLength;
         _maxJournals = maxJournals;
         _maxMemoryMappedJournals = maxMemoryMappedJournals;
+        _navigableJournals = ImmutableRangeMap.of();
 
         _eventBus.register(this);
 
@@ -149,7 +150,7 @@ public class BinStorageImpl implements BinStorage {
     @Override
     public UsageTrack getUsageTrack() {
 
-        return null;
+        return _usageTrack;
     }
 
     @Override
@@ -162,6 +163,11 @@ public class BinStorageImpl implements BinStorage {
     public int getMaxJournals() {
 
         return _maxJournals;
+    }
+
+    @Override
+    public int getMaxMemoryMappedJournals(){
+        return _maxMemoryMappedJournals;
     }
 
     @Override
@@ -203,7 +209,9 @@ public class BinStorageImpl implements BinStorage {
 
     protected WriterBinJournal nextWritable(final File dir) throws IOException {
 
-        final Range<Integer> range = Range.singleton((_navigableJournals.span().upperEndpoint().intValue() + 1) % Integer.MAX_VALUE);
+        final int journalCode = _navigableJournals.asMapOfRanges().isEmpty() ? 0 : (_navigableJournals.span().upperEndpoint().intValue() + 1) % Integer.MAX_VALUE;
+
+        final Range<Integer> range = Range.singleton(journalCode);
 
         final File next = Files.newJournalFile(dir);
 

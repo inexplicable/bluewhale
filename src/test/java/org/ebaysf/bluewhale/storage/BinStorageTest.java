@@ -1,5 +1,7 @@
 package org.ebaysf.bluewhale.storage;
 
+import com.google.common.eventbus.AsyncEventBus;
+import com.google.common.eventbus.EventBus;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -9,6 +11,7 @@ import org.ebaysf.bluewhale.document.BinDocumentRaw;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.IOException;
@@ -23,6 +26,7 @@ import java.util.concurrent.Executors;
 public class BinStorageTest {
 
     private static final ListeningExecutorService _executor = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool());
+    private static final EventBus _eventBus = new AsyncEventBus(_executor);
 
     @AfterClass
     public static void afterClass(){
@@ -38,15 +42,20 @@ public class BinStorageTest {
                 BinDocumentFactories.RAW,
                 1 << 20,//1MB JOURNAL LENGTH
                 8,  //8MB TOTAL JOURNAL BYTES
+                2,
                 Collections.<BinJournal>emptyList(),
-                _executor);
+                _eventBus,
+                _executor,
+                Mockito.mock(UsageTrack.class));
 
         Assert.assertNotNull(storage);
 
         Assert.assertEquals(temp, storage.local());
         Assert.assertEquals(1 << 20, storage.getJournalLength());
         Assert.assertEquals(8, storage.getMaxJournals());
+        Assert.assertEquals(2, storage.getMaxMemoryMappedJournals());
         Assert.assertEquals(0, storage.getEvictedJournals());
+        Assert.assertNotNull(storage.getUsageTrack());
 
         storage.read(0L);
     }
@@ -60,8 +69,11 @@ public class BinStorageTest {
                 BinDocumentFactories.RAW,
                 1 << 20,//1MB JOURNAL LENGTH
                 8,  //8MB TOTAL JOURNAL BYTES
+                2,
                 Collections.<BinJournal>emptyList(),
-                _executor);
+                _eventBus,
+                _executor,
+                Mockito.mock(UsageTrack.class));
 
         final BinDocument small = new BinDocumentRaw()
                 .setHashCode(1)
