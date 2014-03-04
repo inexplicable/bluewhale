@@ -69,8 +69,13 @@ public class LeafSegment extends AbstractSegment {
             final long beforeLoad = System.nanoTime();
             final Future<V> value = belongsTo().getExecutor().submit(get.<V>getValueLoader());
             try{
-                put(new PutAsIs(get.getKey(), value.get(), get.getHashCode()));
+
+                final V resolved = value.get();
+                System.out.printf("resolved: %s\n", resolved);
+
+                put(new PutAsIs(get.getKey(), resolved, get.getHashCode()));
                 //we do the blocking put, and then try calling get again
+                return resolved;
             }
             catch(InterruptedException e){
                 throw new ExecutionException(e);//value get failure

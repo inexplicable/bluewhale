@@ -215,7 +215,7 @@ public class BinStorageImpl implements BinStorage {
 
         final File next = Files.newJournalFile(dir);
 
-        return new WriterBinJournal(next, range, _manager, _factory, _journalLength, com.google.common.io.Files.map(next, FileChannel.MapMode.READ_WRITE));
+        return new WriterBinJournal(next, range, _manager, _factory, _journalLength, com.google.common.io.Files.map(next, FileChannel.MapMode.READ_WRITE, _journalLength));
     }
 
     protected void acceptWritable(final WriterBinJournal writable) {

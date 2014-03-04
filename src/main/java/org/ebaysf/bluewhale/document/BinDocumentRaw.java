@@ -126,7 +126,14 @@ public class BinDocumentRaw implements BinDocument {
     public static long getChecksum(final ByteBuffer buffer, final int offset, final int length) {
 
         final CRC32 crc32 = new CRC32();
-        crc32.update(buffer.array(), offset, length);
+        if(buffer.hasArray()){
+            crc32.update(buffer.array(), offset, length);
+        }
+        else{
+            final byte[] copy = new byte[length];
+            buffer.get(copy, offset, length);
+            crc32.update(copy, offset, length);
+        }
         return crc32.getValue();
     }
 }
