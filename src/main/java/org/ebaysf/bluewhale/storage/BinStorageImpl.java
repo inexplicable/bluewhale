@@ -14,7 +14,6 @@ import org.brettw.SparseBitSet;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.document.BinDocumentFactory;
 import org.ebaysf.bluewhale.event.PostExpansionEvent;
-import org.ebaysf.bluewhale.event.RemovalNotificationEvent;
 import org.ebaysf.bluewhale.util.Files;
 
 import java.io.File;
@@ -24,6 +23,7 @@ import java.nio.channels.FileChannel;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Logger;
 
 /**
  * Created by huzhou on 2/27/14.
@@ -42,6 +42,8 @@ public class BinStorageImpl implements BinStorage {
         CompressionRequired,
         RemainAsIs
     }
+
+    private static final Logger LOG = Logger.getLogger(BinStorageImpl.class.getName());
 
     private final File _local;
     private final JournalsManager _manager;
@@ -234,6 +236,8 @@ public class BinStorageImpl implements BinStorage {
         _navigableJournals = builder.build();
 
         _journaling = writable;
+
+        LOG.info(String.format("[storage] new writable created, navigableJournals updated:%s", _navigableJournals));
     }
 
     protected EventBus getEventBus() {
@@ -254,6 +258,8 @@ public class BinStorageImpl implements BinStorage {
         //it only takes effect after the journal using the buffer gets garbage collected
         _manager.freeUpBuffer(journal.getMemoryMappedBuffer());
 
+        LOG.info(String.format("[storage] downgrade journal:%s to FileChannelBinJournal", journal));
+
         return new FileChannelBinJournal(journal.local(),
                 journal.range(),
                 _manager,
@@ -265,6 +271,8 @@ public class BinStorageImpl implements BinStorage {
 
     @Subscribe
     protected void postExpansion(final PostExpansionEvent event) {
+
+        LOG.info("[storage] post expansion handling");
 
         final BinJournal previous = event.getPreviousWritable();
         //lots of work here:
@@ -301,6 +309,7 @@ public class BinStorageImpl implements BinStorage {
         }
 
         //make previous writable readonly
+        LOG.info("[storage] make previous writable immutable");
         builder.put(previous.range(), new ByteBufferBinJournal(previous.local(),
                 BinJournal.JournalState.BufferedReadOnly,
                 previous.range(),
@@ -326,7 +335,9 @@ public class BinStorageImpl implements BinStorage {
 
                 for(BinJournal journal : BinStorageImpl.this){
 
-                    if(!journal.currentState().isWritable()){
+                    if(!journal.currentState().isMemoryMapped()){
+
+                        LOG.info(String.format("[storage] make investigation on aging journal:%s", journal));
 
                         final JournalUsage usage = journal.usage();
                         final SparseBitSet alives = usage.getAlives();
@@ -363,6 +374,7 @@ public class BinStorageImpl implements BinStorage {
                 try {
                     final ListMultimap<InspectionReport, BinJournal> report = inspected.get();
 
+                    LOG.info(String.format("[storage] investigation report:%s to be handled", report));
                     for(BinJournal journal : report.get(InspectionReport.EvictionRequired)){
                         for(BinDocument evict: journal){
                             if(_usageTrack.using(evict)){

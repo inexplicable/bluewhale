@@ -26,11 +26,14 @@ import java.nio.LongBuffer;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.logging.Logger;
 
 /**
  * Created by huzhou on 2/28/14.
  */
 public class LeafSegment extends AbstractSegment {
+
+    private static final Logger LOG = Logger.getLogger(LeafSegment.class.getName());
 
     private final ByteBuffer _mmap;
     private final LongBuffer _tokens;
@@ -45,7 +48,7 @@ public class LeafSegment extends AbstractSegment {
         _mmap = mmap;
         _tokens = _mmap.asLongBuffer();
 
-        belongsTo().getEventBus().register(this);
+        _belongsTo.getEventBus().register(this);
         _manager.rememberBufferUsedBySegment(_mmap, this);
     }
 
@@ -69,7 +72,6 @@ public class LeafSegment extends AbstractSegment {
             try{
 
                 final V resolved = value.get();
-                System.out.printf("resolved: %s\n", resolved);
 
                 put(new PutAsIs(get.getKey(), resolved, get.getHashCode()));
                 //we do the blocking put, and then try calling get again
@@ -282,6 +284,8 @@ public class LeafSegment extends AbstractSegment {
 
     protected void split() throws IOException {
 
+        LOG.info("[segment] split into lower & upper");
+
         final int lowerBound = range().lowerEndpoint();
         final int upperBound = range().upperEndpoint();
 
@@ -381,6 +385,7 @@ public class LeafSegment extends AbstractSegment {
 
         if(event.getSource() == this){
 
+            LOG.info("[segment] split occurred");
             _belongsTo.getEventBus().unregister(this);
             _manager.freeUpBuffer(_mmap);
         }
@@ -394,6 +399,7 @@ public class LeafSegment extends AbstractSegment {
 
         if(abandons.contains(this)){
 
+            LOG.info("[segment] invalidate all");
             _belongsTo.getEventBus().unregister(this);
             _manager.freeUpBuffer(_mmap);
         }
@@ -403,6 +409,8 @@ public class LeafSegment extends AbstractSegment {
     protected void onPathTooLong(final PathTooLongEvent event){
 
         if(event.getSource() == this){
+
+            LOG.info("[segment] path too long, optimization triggered");
 
             final int offset = event.getOffset();
             final long headTokenExpected = event.getHeadToken();

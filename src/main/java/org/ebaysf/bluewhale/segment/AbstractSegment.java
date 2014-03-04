@@ -132,7 +132,7 @@ public abstract class AbstractSegment implements Segment {
 
     public @Override String toString(){
         return new StringBuilder()
-                .append("[journal]")
+                .append("[segment]")
                 .append(_range)
                 .append("[leaf:")
                 .append(isLeaf())

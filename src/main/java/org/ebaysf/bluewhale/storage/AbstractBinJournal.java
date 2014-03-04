@@ -36,34 +36,38 @@ public abstract class AbstractBinJournal implements BinJournal {
         _size = 0;
     }
 
-    @Override
-    public JournalState currentState() {
+    public @Override JournalState currentState() {
         return _state;
     }
 
-    @Override
-    public File local() {
+    public @Override File local() {
         return _local;
     }
 
-    @Override
-    public Range<Integer> range() {
+    public @Override Range<Integer> range() {
         return _journalRange;
     }
 
-    @Override
-    public int getJournalLength() {
+    public @Override int getJournalLength() {
         return _length;
     }
 
-    @Override
-    public int getDocumentSize() {
+    public @Override int getDocumentSize() {
         return _size;
     }
 
-    @Override
-    public JournalUsage usage() {
+
+    public @Override JournalUsage usage() {
         return _usage;
+    }
+
+    public @Override String toString(){
+        return new StringBuilder()
+                .append("[journal]")
+                .append(_journalRange)
+                .append("][size:")
+                .append(getDocumentSize())
+                .append("]").toString();
     }
 
 }
