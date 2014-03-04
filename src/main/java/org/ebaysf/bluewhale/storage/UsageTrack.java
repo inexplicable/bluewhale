@@ -17,5 +17,7 @@ public interface UsageTrack {
      */
     boolean using(final BinDocument document);
 
-    void evict(final BinDocument document, final RemovalCause cause);
+    void forget(final BinDocument document, final RemovalCause cause);
+
+    void refresh(final BinDocument document);
 }

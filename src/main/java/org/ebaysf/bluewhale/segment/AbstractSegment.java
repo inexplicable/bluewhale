@@ -120,9 +120,14 @@ public abstract class AbstractSegment implements Segment {
         return route(getSegmentCode(document.getHashCode())).using(document);
     }
 
-    public @Override void evict(final BinDocument document, final RemovalCause cause) {
+    public @Override void forget(final BinDocument document, final RemovalCause cause) {
 
-        route(getSegmentCode(document.getHashCode())).evict(document, cause);
+        route(getSegmentCode(document.getHashCode())).forget(document, cause);
+    }
+
+    public @Override void refresh(final BinDocument document){
+
+        route(getSegmentCode(document.getHashCode())).refresh(document);
     }
 
     public @Override String toString(){

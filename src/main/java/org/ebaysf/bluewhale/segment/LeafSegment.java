@@ -12,6 +12,7 @@ import org.ebaysf.bluewhale.Cache;
 import org.ebaysf.bluewhale.command.Get;
 import org.ebaysf.bluewhale.command.Put;
 import org.ebaysf.bluewhale.command.PutAsIs;
+import org.ebaysf.bluewhale.command.PutAsRefresh;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.event.PostInvalidateAllEvent;
 import org.ebaysf.bluewhale.event.PostSegmentSplitEvent;
@@ -144,14 +145,29 @@ public class LeafSegment extends AbstractSegment {
         return super.using(suspect);
     }
 
-    public @Override void evict(final BinDocument obsolete, final RemovalCause cause) {
+    public @Override void forget(final BinDocument obsolete, final RemovalCause cause) {
 
         if(isLeaf()){
 
             _belongsTo.getEventBus().post(new RemovalNotificationEvent(obsolete, cause));
         }
         else{
-            super.evict(obsolete, cause);
+            super.forget(obsolete, cause);
+        }
+    }
+
+    public @Override void refresh(final BinDocument origin) {
+
+        if(isLeaf()){
+            try {
+                put(new PutAsRefresh(origin.getKey(), origin.getValue(), origin.getHashCode(), origin.getState()));
+            }
+            catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        else{
+            super.refresh(origin);
         }
     }
 

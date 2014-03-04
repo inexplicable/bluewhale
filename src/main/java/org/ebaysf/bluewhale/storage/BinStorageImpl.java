@@ -4,6 +4,7 @@ import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
+import com.google.common.cache.RemovalCause;
 import com.google.common.collect.*;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
@@ -13,6 +14,7 @@ import org.brettw.SparseBitSet;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.document.BinDocumentFactory;
 import org.ebaysf.bluewhale.event.PostExpansionEvent;
+import org.ebaysf.bluewhale.event.RemovalNotificationEvent;
 import org.ebaysf.bluewhale.util.Files;
 
 import java.io.File;
@@ -362,11 +364,19 @@ public class BinStorageImpl implements BinStorage {
                     final ListMultimap<InspectionReport, BinJournal> report = inspected.get();
 
                     for(BinJournal journal : report.get(InspectionReport.EvictionRequired)){
-
+                        for(BinDocument evict: journal){
+                            if(_usageTrack.using(evict)){
+                                _usageTrack.forget(evict, RemovalCause.SIZE);
+                            }
+                        }
                     }
 
                     for(BinJournal journal : report.get(InspectionReport.CompressionRequired)){
-
+                        for(BinDocument compress: journal){
+                            if(_usageTrack.using(compress)){
+                                _usageTrack.refresh(compress);
+                            }
+                        }
                     }
                 }
                 catch(Exception ex){

@@ -286,13 +286,23 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
     }
 
     @Override
-    public void evict(final BinDocument document, final RemovalCause cause) {
+    public void forget(final BinDocument document, final RemovalCause cause) {
 
         final int hashCode = document.getHashCode();
         final int segmentCode = getSegmentCode(hashCode);
         final Segment zone = route(segmentCode);
 
-        zone.evict(document, cause);
+        zone.forget(document, cause);
+    }
+
+    @Override
+    public void refresh(final BinDocument document) {
+
+        final int hashCode = document.getHashCode();
+        final int segmentCode = getSegmentCode(hashCode);
+        final Segment zone = route(segmentCode);
+
+        zone.refresh(document);
     }
 
     protected Segment route(final int segmentCode) {
