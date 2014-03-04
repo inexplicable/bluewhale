@@ -1,5 +1,6 @@
 package org.ebaysf.bluewhale.storage;
 
+import com.google.common.cache.RemovalCause;
 import org.ebaysf.bluewhale.document.BinDocument;
 
 /**
@@ -15,4 +16,6 @@ public interface UsageTrack {
      * @return
      */
     boolean using(final BinDocument document);
+
+    void evict(final BinDocument document, final RemovalCause cause);
 }

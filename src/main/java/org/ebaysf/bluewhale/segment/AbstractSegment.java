@@ -1,5 +1,6 @@
 package org.ebaysf.bluewhale.segment;
 
+import com.google.common.cache.RemovalCause;
 import com.google.common.collect.Range;
 import org.ebaysf.bluewhale.Cache;
 import org.ebaysf.bluewhale.command.Get;
@@ -114,9 +115,14 @@ public abstract class AbstractSegment implements Segment {
     }
 
 
-    public @Override boolean using(BinDocument document) {
+    public @Override boolean using(final BinDocument document) {
 
         return route(getSegmentCode(document.getHashCode())).using(document);
+    }
+
+    public @Override void evict(final BinDocument document, final RemovalCause cause) {
+
+        route(getSegmentCode(document.getHashCode())).evict(document, cause);
     }
 
     public @Override String toString(){

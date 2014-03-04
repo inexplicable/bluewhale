@@ -2,10 +2,14 @@ package org.ebaysf.bluewhale;
 
 import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheStats;
+import com.google.common.cache.RemovalCause;
+import com.google.common.cache.RemovalListener;
+import com.google.common.cache.RemovalNotificationOverBuffer;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableRangeMap;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
+import com.google.common.eventbus.AllowConcurrentEvents;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -16,6 +20,7 @@ import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.document.BinDocumentFactory;
 import org.ebaysf.bluewhale.event.PostInvalidateAllEvent;
 import org.ebaysf.bluewhale.event.PostSegmentSplitEvent;
+import org.ebaysf.bluewhale.event.RemovalNotificationEvent;
 import org.ebaysf.bluewhale.event.SegmentSplitEvent;
 import org.ebaysf.bluewhale.segment.LeafSegment;
 import org.ebaysf.bluewhale.segment.Segment;
@@ -48,6 +53,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
     private final SegmentsManager _manager;
     private final BinStorage _storage;
 
+    private final RemovalListener<K, V> _removalListener;
     private final EventBus _eventBus;
     private final ListeningExecutorService _executor;
 
@@ -59,6 +65,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
                      final Serializer<V> valSerializer,
                      final EventBus eventBus,
                      final ListeningExecutorService executor,
+                     final RemovalListener<K, V> removalListener,
                      final BinDocumentFactory factory,
                      final int journalLength,
                      final int maxJournals,
@@ -71,6 +78,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         _valSerializer = Preconditions.checkNotNull(valSerializer);
         _eventBus = Preconditions.checkNotNull(eventBus);
         _executor = Preconditions.checkNotNull(executor);
+        _removalListener = Preconditions.checkNotNull(removalListener);
 
         _manager = new SegmentsManager(local, this);
         _storage = new BinStorageImpl(local, factory, journalLength, maxJournals,
@@ -276,6 +284,16 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         return zone.using(document);
     }
 
+    @Override
+    public void evict(final BinDocument document, final RemovalCause cause) {
+
+        final int hashCode = document.getHashCode();
+        final int segmentCode = getSegmentCode(hashCode);
+        final Segment zone = route(segmentCode);
+
+        zone.evict(document, cause);
+    }
+
     protected Segment route(final int segmentCode) {
 
         return _navigableSegments.get(segmentCode);
@@ -315,6 +333,18 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         _navigableSegments = modifying.build();
 
         getEventBus().post(new PostSegmentSplitEvent(before));
+    }
+
+    @Subscribe
+    @AllowConcurrentEvents
+    protected void onRemovalNotification(final RemovalNotificationEvent event){
+
+        final BinDocument document = event.getSource();
+        final RemovalCause cause = event.getRemovalCase();
+
+        final K key = getKeySerializer().deserialize(document.getKey(), false);
+
+        _removalListener.onRemoval(new RemovalNotificationOverBuffer<K, V>(key, document, getValSerializer(), cause));
     }
 
     public static int getSegmentCode(final int hashCode) {

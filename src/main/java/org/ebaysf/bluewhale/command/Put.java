@@ -33,4 +33,6 @@ public interface Put {
     boolean resets();
 
     boolean compresses();
+
+    boolean suppressRemovalNotification();
 }

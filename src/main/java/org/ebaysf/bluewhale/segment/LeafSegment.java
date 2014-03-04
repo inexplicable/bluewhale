@@ -2,6 +2,7 @@ package org.ebaysf.bluewhale.segment;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.cache.RemovalCause;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
@@ -14,6 +15,7 @@ import org.ebaysf.bluewhale.command.PutAsIs;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.event.PostInvalidateAllEvent;
 import org.ebaysf.bluewhale.event.PostSegmentSplitEvent;
+import org.ebaysf.bluewhale.event.RemovalNotificationEvent;
 import org.ebaysf.bluewhale.event.SegmentSplitEvent;
 import org.ebaysf.bluewhale.serialization.Serializer;
 import org.ebaysf.bluewhale.storage.BinStorage;
@@ -109,7 +111,7 @@ public class LeafSegment extends AbstractSegment {
                     split();
                 }
                 else if(!put.resets() && next >= 0){//we won't do path shortening till read spotted the long paths
-                    //notifyRemoval(put, next);
+                    notifyRemoval(put, next);
                 }
                 return;//must return here, otherwise it goes into infinite recursion.
             }
@@ -135,6 +137,17 @@ public class LeafSegment extends AbstractSegment {
             }
         }
         return super.using(suspect);
+    }
+
+    public @Override void evict(final BinDocument obsolete, final RemovalCause cause) {
+
+        if(isLeaf()){
+
+            _belongsTo.getEventBus().post(new RemovalNotificationEvent(obsolete, cause));
+        }
+        else{
+            super.evict(obsolete, cause);
+        }
     }
 
     protected boolean using(final ByteBuffer keyAsBytes, final long token, final long lastModified) throws IOException {
@@ -310,6 +323,42 @@ public class LeafSegment extends AbstractSegment {
 
         //this triggers tasks like RootingTask
         _belongsTo.getEventBus().post(new SegmentSplitEvent(this, getChildren()));
+    }
+
+    protected void notifyRemoval(final Put put, final long next) {
+        if(!put.suppressRemovalNotification()){
+
+            final Serializer<Object> keySerializer = getKeySerializer();
+            final Object key = put.getKey(keySerializer);
+            final BinStorage storage = getStorage();
+
+            try {
+                if(put.invalidates()){
+                    for(BinDocument doc = storage.read(next); doc != null; doc = storage.read(doc.getNext())){
+                        if(keySerializer.equals(key, doc.getKey())){
+                            if(!doc.isTombstone()){
+                                _belongsTo.getEventBus().post(new RemovalNotificationEvent(doc, RemovalCause.EXPLICIT));
+                            }
+                            return;
+                        }
+                    }
+                }
+                else{
+                    for(BinDocument doc = storage.read(next); doc != null; doc = storage.read(doc.getNext())){
+                        if(keySerializer.equals(key, doc.getKey())){
+                            if(!doc.isTombstone()){
+                                _belongsTo.getEventBus().post(new RemovalNotificationEvent(doc, RemovalCause.REPLACED));
+                            }
+                            return;
+                        }
+                    }
+                }
+            }
+            catch (IOException e) {
+
+                e.printStackTrace();
+            }
+        }
     }
 
     @Subscribe
