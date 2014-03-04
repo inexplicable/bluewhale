@@ -22,15 +22,13 @@ public interface Put {
 
     int getHashCode();
 
-    long getHeadToken();
-
     long getNext();
 
     long getLastModified();
 
     boolean invalidates();
 
-    boolean resets();
+    boolean refreshes();
 
     boolean compresses();
 

@@ -70,12 +70,8 @@ public class PutAsIs implements Put {
         return _lastModified;
     }
 
-    public @Override boolean resets() {
+    public @Override boolean refreshes() {
         return false;
-    }
-
-    public @Override long getHeadToken() {
-        return -1L;
     }
 
     public @Override long getNext() {

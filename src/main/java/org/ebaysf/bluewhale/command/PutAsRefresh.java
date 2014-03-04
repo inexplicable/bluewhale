@@ -3,6 +3,7 @@ package org.ebaysf.bluewhale.command;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.document.BinDocumentRaw;
 import org.ebaysf.bluewhale.serialization.Serializer;
+import org.xerial.snappy.Snappy;
 
 import java.nio.ByteBuffer;
 
@@ -12,10 +13,10 @@ import java.nio.ByteBuffer;
 public class PutAsRefresh implements Put {
 
     private final ByteBuffer _keyAsByteBuffer;
-    private final ByteBuffer _valAsByteBuffer;
+    private ByteBuffer _valAsByteBuffer;
     private final int _hashCode;
     private final long _lastModified;
-    private final byte _state;
+    protected byte _state;
 
     public PutAsRefresh(final ByteBuffer keyAsByteBuffer,
                         final ByteBuffer valAsByteBuffer,
@@ -23,12 +24,23 @@ public class PutAsRefresh implements Put {
                         final byte state) {
 
         _keyAsByteBuffer = keyAsByteBuffer.duplicate();
-        _valAsByteBuffer = valAsByteBuffer.duplicate();
 
         _hashCode = hashCode;
-        _state = state;
-
         _lastModified = System.nanoTime();
+
+        if((state & BinDocument.COMPRESSED) == 0){
+            final ByteBuffer compressing = ByteBuffer.allocate(valAsByteBuffer.remaining());
+            try {
+                final int length = Snappy.compress(valAsByteBuffer, compressing);
+                compressing.rewind();
+                compressing.limit(length);
+                _valAsByteBuffer = compressing;
+                _state = (byte)(state & BinDocument.COMPRESSED);
+            }
+            catch(Exception e) {
+                _valAsByteBuffer = valAsByteBuffer;
+            }
+        }
     }
 
     @Override
@@ -71,11 +83,6 @@ public class PutAsRefresh implements Put {
     }
 
     @Override
-    public long getHeadToken() {
-        return -1L;
-    }
-
-    @Override
     public long getNext() {
         return -1L;
     }
@@ -91,7 +98,7 @@ public class PutAsRefresh implements Put {
     }
 
     @Override
-    public boolean resets() {
+    public boolean refreshes() {
         return true;
     }
 

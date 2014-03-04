@@ -6,6 +6,7 @@ import com.google.common.cache.RemovalCause;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
+import com.google.common.collect.Sets;
 import com.google.common.eventbus.AllowConcurrentEvents;
 import com.google.common.eventbus.Subscribe;
 import org.ebaysf.bluewhale.Cache;
@@ -14,10 +15,7 @@ import org.ebaysf.bluewhale.command.Put;
 import org.ebaysf.bluewhale.command.PutAsIs;
 import org.ebaysf.bluewhale.command.PutAsRefresh;
 import org.ebaysf.bluewhale.document.BinDocument;
-import org.ebaysf.bluewhale.event.PostInvalidateAllEvent;
-import org.ebaysf.bluewhale.event.PostSegmentSplitEvent;
-import org.ebaysf.bluewhale.event.RemovalNotificationEvent;
-import org.ebaysf.bluewhale.event.SegmentSplitEvent;
+import org.ebaysf.bluewhale.event.*;
 import org.ebaysf.bluewhale.serialization.Serializer;
 import org.ebaysf.bluewhale.storage.BinStorage;
 import org.javatuples.Pair;
@@ -25,8 +23,7 @@ import org.javatuples.Pair;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.LongBuffer;
-import java.util.Collection;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -116,7 +113,7 @@ public class LeafSegment extends AbstractSegment {
                 if(isSplitRequired(next, put)){
                     split();
                 }
-                else if(!put.resets() && next >= 0){//we won't do path shortening till read spotted the long paths
+                else if(!put.refreshes() && next >= 0){//we won't do path shortening till read spotted the long paths
                     notifyRemoval(put, next);
                 }
                 return;//must return here, otherwise it goes into infinite recursion.
@@ -205,8 +202,9 @@ public class LeafSegment extends AbstractSegment {
             return null;
         }
         finally {
-
-            //TODO shorten path
+            if(length >= SHORTEN_PATH_THRESHOLD){
+                _belongsTo.getEventBus().post(new PathTooLongEvent(this, offset, _tokens.get(offset)));
+            }
         }
     }
 
@@ -242,10 +240,6 @@ public class LeafSegment extends AbstractSegment {
      */
     protected boolean isPutObsolete(final long next, final Put put) throws IOException{
         final BinStorage bin = getStorage();
-        //verify if reset is ok
-        if(put.resets()){
-            return next != put.getHeadToken();
-        }
         //verify normal updates is ok
         for(BinDocument doc = bin.read(next); doc != null; doc = bin.read(doc.getNext())) {
 
@@ -264,8 +258,8 @@ public class LeafSegment extends AbstractSegment {
      * @throws IOException
      */
     protected boolean isSplitRequired(final long next, final Put put) throws IOException{
-        //resets/invalidates doesn't increase the size!
-        if(put.resets()
+        //refreshes/invalidates doesn't increase the size!
+        if(put.refreshes()
                 || put.invalidates()
                 || range().upperEndpoint() - range().lowerEndpoint() <= 1) {
 
@@ -402,6 +396,72 @@ public class LeafSegment extends AbstractSegment {
 
             _belongsTo.getEventBus().unregister(this);
             _manager.freeUpBuffer(_mmap);
+        }
+    }
+
+    @Subscribe
+    protected void onPathTooLong(final PathTooLongEvent event){
+
+        if(event.getSource() == this){
+
+            final int offset = event.getOffset();
+            final long headTokenExpected = event.getHeadToken();
+
+            long token = _tokens.get(offset);
+            if(token != headTokenExpected){
+                return;//already changed
+            }
+
+            final BinStorage storage = getStorage();
+            final Serializer<Object> keySerializer = getKeySerializer();
+            final Set<ByteBuffer> exists = Sets.newTreeSet(new Comparator<ByteBuffer>() {
+                public @Override int compare(ByteBuffer o1, ByteBuffer o2) {
+                    if(keySerializer.equals(o1, o2)){
+                        return 0;
+                    }
+                    else{
+                        return o1.hashCode() - o2.hashCode();
+                    }
+                }
+            });
+
+            final Stack<BinDocument> lifo = new Stack<BinDocument>();
+            int walkThrough = 0;
+            try{
+                for(BinDocument doc = storage.read(token); doc != null; doc = storage.read(doc.getNext())){
+                    if(!exists.contains(doc.getKey())){
+                        exists.add(doc.getKey());
+                        if(!doc.isTombstone()){//already removed, no need to rebuild
+                            lifo.add(doc);
+                        }
+                    }
+                    walkThrough += 1;
+                }
+
+                if(!lifo.empty() && lifo.size() < walkThrough / 2){
+                    //a shorten path is to happen
+                    long next = -1L;
+
+                    while(!lifo.isEmpty()){
+                        final BinDocument reset = lifo.pop();
+                        next = storage.append(new PutAsRefresh(reset.getKey(), reset.getValue(), reset.getHashCode(), reset.getState()).create(getKeySerializer(), getValSerializer(), next));
+                    }
+
+                    try{
+                        _lock.lock();
+                        if(headTokenExpected == _tokens.get(offset)){
+                            _tokens.put(offset, next);
+                        }
+                    }
+                    finally {
+                        _lock.unlock();
+                    }
+                }
+
+            }
+            catch(IOException e){
+                e.printStackTrace();
+            }
         }
     }
 
