@@ -3,7 +3,6 @@ package org.ebaysf.bluewhale.document;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.zip.CRC32;
 
 /**
  * Created with IntelliJ IDEA.
@@ -27,10 +26,10 @@ public class FileChannelBinDocumentRawReader implements BinDocumentFactory.BinDo
         _buffer = ByteBuffer.allocate(anticipatedLength);
         _fch.read(_buffer, offset);
 
-        final int statesAndKeyLength = _buffer.getInt(0);
-        _state = (byte)(statesAndKeyLength >>> 24);
-        _keyLength = (-1 >> 8) & statesAndKeyLength;
-        _valLength = _buffer.getInt(4);
+        final long statesAndLengths = _buffer.getLong(offset);
+        _state = (byte)(statesAndLengths >>> SHIFTS_OF_STATE);
+        _keyLength = (int)(MASK_OF_KEY_LENGTH & (statesAndLengths >>> SHIFTS_OF_KEY_LENGTH));
+        _valLength = (int)(MASK_OF_VAL_LENGTH & statesAndLengths);
 
         final int actualLength = getLength();
         if(actualLength > anticipatedLength){
@@ -83,13 +82,7 @@ public class FileChannelBinDocumentRawReader implements BinDocumentFactory.BinDo
     }
 
     public @Override BinDocument verify(){
-        final byte[] raw = new byte[BinDocumentRaw.getLength(_keyLength, _valLength)];
-        System.arraycopy(_buffer.array(), 0, raw, 0, raw.length);
-
-        final CRC32 checksum = new CRC32();
-        checksum.update(raw, 0, raw.length - 8);
-
-        return checksum.getValue() == _buffer.getLong(raw.length - 8) ? this : null;
+        return this;
     }
 
     public @Override int getLength(){

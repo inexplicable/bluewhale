@@ -62,28 +62,6 @@ public class BinDocumentRawWriter implements BinDocumentFactory.BinDocumentWrite
         return _doc.isCompressed();
     }
 
-    public @Override ByteBuffer write() {
-
-        final ByteBuffer key = getKey();
-        Preconditions.checkState(key.remaining() < (1 << 24) - 1);
-
-        final ByteBuffer val = getValue();
-        final int length = BinDocumentRaw.getLength(key.remaining(), val.remaining());
-
-        final ByteBuffer buffer = ByteBuffer.allocate(length);
-        buffer.putInt(getState() << 24 | key.remaining());
-        buffer.putInt(val.remaining());
-        buffer.putLong(getNext());
-        buffer.putInt(getHashCode());
-        buffer.put(key);
-        buffer.put(val);
-        buffer.putLong(getLastModified());
-        buffer.putLong(BinDocumentRaw.getChecksum(buffer, 0, length - 8));
-
-        buffer.rewind();
-        return buffer;
-    }
-
     public @Override int length() {
 
         return BinDocumentRaw.getLength(getKey().remaining(), getValue().remaining());
@@ -99,14 +77,11 @@ public class BinDocumentRawWriter implements BinDocumentFactory.BinDocumentWrite
         final ByteBuffer writer = buffer.duplicate();
 
         writer.position(offset);
-        writer.putInt(getState() << 24 | key.remaining());
-        writer.putInt(val.remaining());
+        writer.putLong((long)(getState()) << (24L + 32L) | (long)(key.remaining()) << 32L | (long)val.remaining());
         writer.putLong(getNext());
         writer.putInt(getHashCode());
+        writer.putLong(getLastModified());
         writer.put(key);
         writer.put(val);
-        writer.putLong(getLastModified());
-        writer.putLong(BinDocumentRaw.getChecksum(buffer, 0, length() - 8));
-
     }
 }

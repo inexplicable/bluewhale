@@ -1,6 +1,5 @@
 package org.ebaysf.bluewhale.storage;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.document.BinDocumentFactory;
@@ -39,8 +38,6 @@ public class ByteBufferBinJournal extends AbstractBinJournal {
     }
 
     public @Override BinDocument read(final int offset) throws IOException {
-
-        Preconditions.checkArgument(offset < _mmap.position());//don't allow read beyond the position
 
         return _factory.getReader(_mmap, offset).read();
     }

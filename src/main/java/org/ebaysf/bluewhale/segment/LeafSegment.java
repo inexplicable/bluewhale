@@ -371,7 +371,7 @@ public class LeafSegment extends AbstractSegment {
 
         if(event.getSource() == this){
 
-            belongsTo().getEventBus().unregister(this);
+            _belongsTo.getEventBus().unregister(this);
             _manager.freeUpBuffer(_mmap);
         }
     }

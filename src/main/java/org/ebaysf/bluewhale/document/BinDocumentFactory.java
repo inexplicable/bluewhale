@@ -15,14 +15,17 @@ public interface BinDocumentFactory {
 
     interface BinDocumentWriter extends BinDocument {
 
-        ByteBuffer write() throws IOException;
-
         int length();
 
         void write(final ByteBuffer buffer, final int offset);
     }
 
     interface BinDocumentReader extends BinDocument {
+
+        long SHIFTS_OF_STATE = Long.SIZE - Byte.SIZE;
+        long SHIFTS_OF_KEY_LENGTH = Integer.SIZE;
+        long MASK_OF_KEY_LENGTH = -1L >>> (Byte.SIZE + Long.SIZE);
+        long MASK_OF_VAL_LENGTH = -1L >>> (Long.SIZE + 1L);
 
         BinDocument read() throws IOException;
 

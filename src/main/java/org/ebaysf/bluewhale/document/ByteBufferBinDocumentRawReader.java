@@ -11,6 +11,14 @@ import java.util.zip.CRC32;
  */
 public class ByteBufferBinDocumentRawReader implements BinDocumentFactory.BinDocumentReader {
 
+    public static final int OFFSET_OF_NEXT = BYTES_OF_LONG;//state & lengths
+    public static final int OFFSET_OF_HASHCODE = OFFSET_OF_NEXT
+            + BYTES_OF_LONG;//next token
+    public static final int OFFSET_OF_LASTMODIFIED = OFFSET_OF_HASHCODE
+            + BYTES_OF_INT; //hash code
+    public static final int OFFSET_OF_KEY = OFFSET_OF_LASTMODIFIED
+            + BYTES_OF_LONG;//last modified
+
     private final ByteBuffer _buffer;
     private final int _offset;
     private final byte _state;
@@ -21,36 +29,36 @@ public class ByteBufferBinDocumentRawReader implements BinDocumentFactory.BinDoc
         _buffer = buffer.duplicate();
         _offset = offset;
 
-        final int statesAndKeyLength = _buffer.getInt(offset);
-        _state = (byte)(statesAndKeyLength >>> 24);
-        _keyLength = (-1 >>> 8) & statesAndKeyLength;
-        _valLength = _buffer.getInt(offset + 4);
+        final long statesAndLengths = _buffer.getLong(offset);
+        _state = (byte)(statesAndLengths >>> SHIFTS_OF_STATE);
+        _keyLength = (int)(MASK_OF_KEY_LENGTH & (statesAndLengths >>> SHIFTS_OF_KEY_LENGTH));
+        _valLength = (int)(MASK_OF_VAL_LENGTH & statesAndLengths);
     }
 
     public @Override ByteBuffer getKey() {
         final ByteBuffer keyBuffer = _buffer.duplicate();
-        final int pos = _offset + 20;
+        final int pos = _offset + OFFSET_OF_KEY;
         keyBuffer.position(pos).limit(pos + _keyLength);
         return keyBuffer;
     }
 
     public @Override ByteBuffer getValue() {
         final ByteBuffer valBuffer = _buffer.duplicate();
-        final int pos = _offset + 20 + _keyLength;
+        final int pos = _offset + OFFSET_OF_KEY + _keyLength;
         valBuffer.position(pos).limit(pos + _valLength);
         return valBuffer;
     }
 
     public @Override int getHashCode() {
-        return _buffer.getInt(_offset + 16);
+        return _buffer.getInt(_offset + OFFSET_OF_HASHCODE);
     }
 
     public @Override long getNext() {
-        return _buffer.getLong(_offset + 8);
+        return _buffer.getLong(_offset + OFFSET_OF_NEXT);
     }
 
     public @Override long getLastModified() {
-        return _buffer.getLong(_offset + 20 + _keyLength + _valLength);
+        return _buffer.getLong(_offset + OFFSET_OF_LASTMODIFIED);
     }
 
     public @Override byte getState() {
