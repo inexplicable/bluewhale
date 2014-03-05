@@ -2,6 +2,7 @@ package org.ebaysf.bluewhale.segment;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Throwables;
 import com.google.common.cache.RemovalCause;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Maps;
@@ -136,8 +137,7 @@ public class LeafSegment extends AbstractSegment {
                 return token >= 0 && using(suspect.getKey(), token, suspect.getLastModified());
             }
             catch (IOException e) {
-                e.printStackTrace();
-                //dangerous, conservative
+                LOG.warning(Throwables.getStackTraceAsString(e));
                 return true;
             }
         }
@@ -162,7 +162,7 @@ public class LeafSegment extends AbstractSegment {
                 put(new PutAsRefresh(origin.getKey(), origin.getValue(), origin.getHashCode(), origin.getState()));
             }
             catch (IOException e) {
-                e.printStackTrace();
+                LOG.warning(Throwables.getStackTraceAsString(e));
             }
         }
         else{
@@ -374,8 +374,7 @@ public class LeafSegment extends AbstractSegment {
                 }
             }
             catch (IOException e) {
-
-                e.printStackTrace();
+                LOG.warning(Throwables.getStackTraceAsString(e));
             }
         }
     }
@@ -385,7 +384,7 @@ public class LeafSegment extends AbstractSegment {
 
         if(event.getSource() == this){
 
-            LOG.info("[segment] split occurred");
+            LOG.info(String.format("[segment] split occurred %s -> %s,%s", this, _lower, _upper));
             _manager.freeUpBuffer(_mmap);
         }
     }
@@ -467,7 +466,7 @@ public class LeafSegment extends AbstractSegment {
 
             }
             catch(IOException e){
-                e.printStackTrace();
+                LOG.warning(Throwables.getStackTraceAsString(e));
             }
         }
     }
