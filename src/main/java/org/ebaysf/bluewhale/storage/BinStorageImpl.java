@@ -1,9 +1,7 @@
 package org.ebaysf.bluewhale.storage;
 
 import com.google.common.base.Objects;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
-import com.google.common.base.Supplier;
+import com.google.common.base.*;
 import com.google.common.cache.RemovalCause;
 import com.google.common.collect.*;
 import com.google.common.eventbus.EventBus;
@@ -136,6 +134,10 @@ public class BinStorageImpl implements BinStorage {
 
         final BinJournal zone = route(token);
 
+        if(zone == null){
+            return null;
+        }
+
         final int offset = (int)(token & MASK_OFFSET);
 
         return zone.read(offset);
@@ -261,6 +263,26 @@ public class BinStorageImpl implements BinStorage {
                 -1);
     }
 
+    protected BinJournal immutable(final BinJournal previous) {
+
+        Preconditions.checkArgument(previous != null && previous.currentState().isWritable());
+
+        final ByteBufferBinJournal immutable = new ByteBufferBinJournal(previous.local(),
+                BinJournal.JournalState.BufferedReadOnly,
+                previous.range(),
+                _manager,
+                new JournalUsageImpl(previous.usage().getLastModified(), previous.getDocumentSize()),
+                _factory,
+                previous.getJournalLength(),
+                previous.getMemoryMappedBuffer());
+
+        immutable._size = previous.getDocumentSize();
+        //assume everything still in use
+        immutable.usage().getAlives().set(0, immutable._size);
+
+        return immutable;
+    }
+
     @Subscribe
     public void postExpansion(final PostExpansionEvent event) {
 
@@ -304,16 +326,7 @@ public class BinStorageImpl implements BinStorage {
 
         //make previous writable readonly
         LOG.info("[storage] make previous writable immutable");
-        final ByteBufferBinJournal immutable = new ByteBufferBinJournal(previous.local(),
-                BinJournal.JournalState.BufferedReadOnly,
-                previous.range(),
-                _manager,
-                new JournalUsageImpl(previous.usage().getLastModified(), previous.getDocumentSize()),
-                _factory,
-                previous.getJournalLength(),
-                previous.getMemoryMappedBuffer());
-        immutable._size = previous.getDocumentSize();
-        builder.put(previous.range(), immutable);
+        builder.put(previous.range(), immutable(previous));
 
         //keep writable in it
         builder.put(_journaling.range(), _journaling);
@@ -331,9 +344,17 @@ public class BinStorageImpl implements BinStorage {
                             }
                         });
 
+                int forced = _navigableJournals.asMapOfRanges().size() - getMaxJournals();
+
                 for(BinJournal journal : BinStorageImpl.this){
 
                     if(!journal.currentState().isMemoryMapped()){
+
+                        if((forced -= 1) >= 0){
+                            LOG.info(String.format("[storage] forced out aging journal:%s", journal));
+                            investigation.put(InspectionReport.EvictionRequired, journal);
+                            continue;
+                        }
 
                         LOG.info(String.format("[storage] make investigation on aging journal:%s", journal));
 
@@ -342,11 +363,12 @@ public class BinStorageImpl implements BinStorage {
                         int index = 0;
 
                         for(Iterator<BinDocument> it = journal.iterator(); it.hasNext(); index += 1){
+                            final BinDocument suspect = it.next();
                             if(alives.get(index)){
-                                alives.set(index, _usageTrack.using(it.next()));
+                                alives.set(index, _usageTrack.using(suspect));
                             }
                             if(alives.cardinality() > journal.getDocumentSize() * 0.1f){
-                                break;//no more investigation needed upon this journal till next time.
+                                break;//no more investigation needed upon this journal till suspect time.
                             }
                         }
 
@@ -371,15 +393,18 @@ public class BinStorageImpl implements BinStorage {
         inspected.addListener(new Runnable() {
             public @Override void run() {
                 try {
+                    _lock.lock();
                     final ListMultimap<InspectionReport, BinJournal> report = inspected.get();
 
                     LOG.info(String.format("[storage] investigation report:%s to be handled", report));
+                    final Set<BinJournal> exclusions = Sets.newIdentityHashSet();
                     for(BinJournal journal : report.get(InspectionReport.EvictionRequired)){
                         for(BinDocument evict: journal){
                             if(_usageTrack.using(evict)){
                                 _usageTrack.forget(evict, RemovalCause.SIZE);
                             }
                         }
+                        exclusions.add(journal);
                     }
 
                     for(BinJournal journal : report.get(InspectionReport.CompressionRequired)){
@@ -388,11 +413,26 @@ public class BinStorageImpl implements BinStorage {
                                 _usageTrack.refresh(compress);
                             }
                         }
+                        exclusions.add(journal);
                     }
+
+                    final ImmutableRangeMap.Builder<Integer, BinJournal> builder = ImmutableRangeMap.builder();
+
+                    for(Map.Entry<Range<Integer>, BinJournal> entry : _navigableJournals.asMapOfRanges().entrySet()) {
+                        if(!exclusions.contains(entry.getValue())){
+                            builder.put(entry.getKey(), entry.getValue());
+                        }
+                    }
+
+                    _navigableJournals = builder.build();
                 }
                 catch(Exception ex){
-
+                    LOG.warning(Throwables.getStackTraceAsString(ex));
                 }
+                finally {
+                    _lock.unlock();
+                }
+
             }
         }, _executor);
     }
