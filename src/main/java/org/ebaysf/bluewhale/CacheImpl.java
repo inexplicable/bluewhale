@@ -48,6 +48,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
 
     private final File _local;
     private final int _concurrencyLevel;
+    private final int _maxSegmentDepth;
     private final Serializer<K> _keySerializer;
     private final Serializer<V> _valSerializer;
     private final SegmentsManager _manager;
@@ -61,6 +62,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
 
     public CacheImpl(final File local,
                      final int concurrencyLevel,
+                     final int maxSegmentDepth,
                      final Serializer<K> keySerializer,
                      final Serializer<V> valSerializer,
                      final EventBus eventBus,
@@ -74,13 +76,14 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
 
         _local = Preconditions.checkNotNull(local);
         _concurrencyLevel = concurrencyLevel;Preconditions.checkArgument(concurrencyLevel > 0 && concurrencyLevel < 16);
+        _maxSegmentDepth = maxSegmentDepth;Preconditions.checkArgument(maxSegmentDepth > 0 && maxSegmentDepth < 16);
         _keySerializer = Preconditions.checkNotNull(keySerializer);
         _valSerializer = Preconditions.checkNotNull(valSerializer);
         _eventBus = Preconditions.checkNotNull(eventBus);
         _executor = Preconditions.checkNotNull(executor);
         _removalListener = Preconditions.checkNotNull(removalListener);
 
-        _manager = new SegmentsManager(local, this);
+        _manager = new SegmentsManager(local, Integer.MAX_VALUE >> (concurrencyLevel + maxSegmentDepth), this);
         _storage = new BinStorageImpl(local, factory, journalLength, maxJournals,
                 maxMemoryMappedJournals, loadings, eventBus, executor, this);
 

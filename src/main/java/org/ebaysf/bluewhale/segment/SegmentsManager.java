@@ -26,6 +26,7 @@ public class SegmentsManager {
 	private static final Logger LOG = Logger.getLogger(SegmentsManager.class.getName());
 
     private final File _local;
+    private final int _spanAtLeast;
     private final Cache<?, ?> _belongsTo;
     private final Queue<ByteBuffer> _availableBuffers;
 
@@ -43,9 +44,11 @@ public class SegmentsManager {
             Maps.INSTANCE.newIdentityWeakValuesCache(_segmentsNoLongerUsedListener);
 
     public SegmentsManager(final File local,
+                           final int spanAtLeast,
                            final Cache<?, ?> belongsTo){
 
         _local = local;
+        _spanAtLeast = Math.max(1, spanAtLeast);
         _belongsTo = belongsTo;
         _availableBuffers = new ConcurrentLinkedQueue<ByteBuffer>();
     }
@@ -69,6 +72,10 @@ public class SegmentsManager {
 		resetTokens(buffer.asLongBuffer());
 		return buffer;
 	}
+
+    public int getSpanAtLeast() {
+        return _spanAtLeast;
+    }
 
     public void freeUpBuffer(final ByteBuffer buffer){
 

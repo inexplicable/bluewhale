@@ -262,7 +262,7 @@ public class LeafSegment extends AbstractSegment {
         //refreshes/invalidates doesn't increase the size!
         if(put.refreshes()
                 || put.invalidates()
-                || range().upperEndpoint() - range().lowerEndpoint() <= 1) {
+                || range().upperEndpoint() - range().lowerEndpoint() <= _manager.getSpanAtLeast()) {
 
             return false;
         }
