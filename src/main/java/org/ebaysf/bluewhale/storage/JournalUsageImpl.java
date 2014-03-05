@@ -18,23 +18,19 @@ public class JournalUsageImpl implements JournalUsage {
         _alives = new SparseBitSet(documents);
     }
 
-    @Override
-    public long getLastModified() {
+    public @Override long getLastModified() {
         return _lastModified;
     }
 
-    @Override
-    public boolean isAllDead() {
+    public @Override boolean isAllDead() {
         return _alives.isEmpty();
     }
 
-    @Override
-    public float getUsageRatio() {
+    public @Override float getUsageRatio() {
         return (float)_alives.cardinality() / (float)_documents ;
     }
 
-    @Override
-    public SparseBitSet getAlives() {
+    public @Override SparseBitSet getAlives() {
         return _alives;
     }
 }

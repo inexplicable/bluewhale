@@ -53,8 +53,7 @@ public class LeafSegment extends AbstractSegment {
         _manager.rememberBufferUsedBySegment(_mmap, this);
     }
 
-    @Override
-    public <V> V get(Get get) throws ExecutionException, IOException {
+    public @Override <V> V get(Get get) throws ExecutionException, IOException {
         //promised! no locking on Get
         if(isLeaf()){
             final int offset = getOffset(get.getHashCode());

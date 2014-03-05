@@ -43,28 +43,23 @@ public class PutAsRefresh implements Put {
         }
     }
 
-    @Override
-    public <K> K getKey(Serializer<K> keySerializer) {
+    public @Override <K> K getKey(Serializer<K> keySerializer) {
         return keySerializer.deserialize(_keyAsByteBuffer, false);
     }
 
-    @Override
-    public <V> V getVal(Serializer<V> valSerializer) {
+    public @Override <V> V getVal(Serializer<V> valSerializer) {
         return valSerializer.deserialize(_valAsByteBuffer, compresses());
     }
 
-    @Override
-    public <K> ByteBuffer getKeyAsByteBuffer(Serializer<K> keySerializer) {
+    public @Override <K> ByteBuffer getKeyAsByteBuffer(Serializer<K> keySerializer) {
         return _keyAsByteBuffer.duplicate();
     }
 
-    @Override
-    public <V> ByteBuffer getValAsByteBuffer(Serializer<V> valSerializer) {
+    public @Override <V> ByteBuffer getValAsByteBuffer(Serializer<V> valSerializer) {
         return _valAsByteBuffer.duplicate();
     }
 
-    @Override
-    public <K, V> BinDocument create(final Serializer<K> keySerializer,
+    public @Override <K, V> BinDocument create(final Serializer<K> keySerializer,
                                      final Serializer<V> valSerializer,
                                      final long next) {
 
@@ -77,38 +72,31 @@ public class PutAsRefresh implements Put {
                 .setState(_state);
     }
 
-    @Override
-    public int getHashCode() {
+    public @Override int getHashCode() {
         return _hashCode;
     }
 
-    @Override
-    public long getNext() {
+    public @Override long getNext() {
         return -1L;
     }
 
-    @Override
-    public long getLastModified() {
+    public @Override long getLastModified() {
         return _lastModified;
     }
 
-    @Override
-    public boolean invalidates() {
+    public @Override boolean invalidates() {
         return (_state & BinDocument.TOMBSTONE) != 0;
     }
 
-    @Override
-    public boolean refreshes() {
+    public @Override boolean refreshes() {
         return true;
     }
 
-    @Override
-    public boolean compresses() {
+    public @Override boolean compresses() {
         return (_state & BinDocument.COMPRESSED) != 0;
     }
 
-    @Override
-    public boolean suppressRemovalNotification() {
+    public @Override boolean suppressRemovalNotification() {
         return true;
     }
 }

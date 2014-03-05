@@ -93,14 +93,12 @@ public class BinStorageImpl implements BinStorage {
         acceptWritable(nextWritable(_local));
     }
 
-    @Override
-    public File local() {
+    public @Override File local() {
 
         return _local;
     }
 
-    @Override
-    public long append(BinDocument binDocument) throws IOException {
+    public @Override long append(BinDocument binDocument) throws IOException {
 
         Preconditions.checkState(_journaling != null && _journaling.currentState().isWritable());
 
@@ -129,8 +127,7 @@ public class BinStorageImpl implements BinStorage {
         }
     }
 
-    @Override
-    public BinDocument read(final long token) throws IOException {
+    public @Override BinDocument read(final long token) throws IOException {
 
         if(token < 0) {
             return null;
@@ -143,51 +140,43 @@ public class BinStorageImpl implements BinStorage {
         return zone.read(offset);
     }
 
-    @Override
-    public BinJournal route(final long token) {
+    public @Override BinJournal route(final long token) {
 
         final int journalCode = (int)(token >> Integer.SIZE);
 
         return _navigableJournals.get(journalCode);
     }
 
-    @Override
-    public UsageTrack getUsageTrack() {
+    public @Override UsageTrack getUsageTrack() {
 
         return _usageTrack;
     }
 
-    @Override
-    public int getJournalLength() {
+    public @Override int getJournalLength() {
 
         return _journalLength;
     }
 
-    @Override
-    public int getMaxJournals() {
+    public @Override int getMaxJournals() {
 
         return _maxJournals;
     }
 
-    @Override
-    public int getMaxMemoryMappedJournals(){
+    public @Override int getMaxMemoryMappedJournals(){
         return _maxMemoryMappedJournals;
     }
 
-    @Override
-    public int getEvictedJournals() {
+    public @Override int getEvictedJournals() {
 
         return Collections2.filter(_navigableJournals.asMapOfRanges().values(), JOURNAL_EVICTED).size();
     }
 
-    @Override
-    public Iterator<BinJournal> iterator() {
+    public @Override Iterator<BinJournal> iterator() {
 
         final List<BinJournal> orderedByLastModified = Lists.newArrayList(_navigableJournals.asMapOfRanges().values());
 
         Collections.sort(orderedByLastModified, new Comparator<BinJournal>() {
-            @Override
-            public int compare(final BinJournal journalOne, final BinJournal journalTwo) {
+            public @Override int compare(final BinJournal journalOne, final BinJournal journalTwo) {
 
                 return (int)(journalOne.usage().getLastModified() - journalTwo.usage().getLastModified());
             }
@@ -328,14 +317,12 @@ public class BinStorageImpl implements BinStorage {
         _navigableJournals = builder.build();
 
         final ListenableFuture<ListMultimap<InspectionReport, BinJournal>> inspected = _executor.submit(new Callable<ListMultimap<InspectionReport,BinJournal>>() {
-            @Override
-            public ListMultimap<InspectionReport, BinJournal> call() throws Exception {
+            public @Override ListMultimap<InspectionReport, BinJournal> call() throws Exception {
 
                 final ListMultimap<InspectionReport, BinJournal> investigation = Multimaps.newListMultimap(
                         Maps.<InspectionReport, Collection<BinJournal>>newHashMap(),
                         new Supplier<List<BinJournal>>() {
-                            @Override
-                            public List<BinJournal> get() {
+                            public @Override List<BinJournal> get() {
                                 return Lists.newLinkedList();
                             }
                         });
@@ -376,8 +363,7 @@ public class BinStorageImpl implements BinStorage {
         });
 
         inspected.addListener(new Runnable() {
-            @Override
-            public void run() {
+            public @Override void run() {
                 try {
                     final ListMultimap<InspectionReport, BinJournal> report = inspected.get();
 

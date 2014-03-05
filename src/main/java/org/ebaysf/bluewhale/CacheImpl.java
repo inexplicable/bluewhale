@@ -89,39 +89,33 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         _navigableSegments = initSegments(_local, concurrencyLevel);
     }
 
-    @Override
-    public EventBus getEventBus() {
+    public @Override EventBus getEventBus() {
 
         return _eventBus;
     }
 
-    @Override
-    public ListeningExecutorService getExecutor() {
+    public @Override ListeningExecutorService getExecutor() {
 
         return _executor;
     }
 
-    @Override
-    public Serializer<K> getKeySerializer() {
+    public @Override Serializer<K> getKeySerializer() {
 
         return _keySerializer;
     }
 
-    @Override
-    public Serializer<V> getValSerializer() {
+    public @Override Serializer<V> getValSerializer() {
 
         return _valSerializer;
     }
 
-    @Override
-    public BinStorage getStorage() {
+    public @Override BinStorage getStorage() {
 
         return _storage;
     }
 
 
-    @Override
-    public V getIfPresent(Object key) {
+    public @Override V getIfPresent(Object key) {
 
         Preconditions.checkArgument(key != null);
 
@@ -139,8 +133,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         }
     }
 
-    @Override
-    public V get(K key, Callable<? extends V> valueLoader) throws ExecutionException {
+    public @Override V get(K key, Callable<? extends V> valueLoader) throws ExecutionException {
 
         Preconditions.checkArgument(key != null && valueLoader != null);
 
@@ -159,8 +152,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         }
     }
 
-    @Override
-    public ImmutableMap<K, V> getAllPresent(Iterable<?> keys) {
+    public @Override ImmutableMap<K, V> getAllPresent(Iterable<?> keys) {
 
         Preconditions.checkArgument(keys != null);
 
@@ -173,8 +165,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         return builder.build();
     }
 
-    @Override
-    public void put(K key, V value) {
+    public @Override void put(K key, V value) {
 
         Preconditions.checkArgument(key != null && value != null);
 
@@ -191,8 +182,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         }
     }
 
-    @Override
-    public void putAll(Map<? extends K, ? extends V> m) {
+    public @Override void putAll(Map<? extends K, ? extends V> m) {
 
         Preconditions.checkArgument(m != null);
 
@@ -202,8 +192,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
 
     }
 
-    @Override
-    public void invalidate(Object key) {
+    public @Override void invalidate(Object key) {
 
         Preconditions.checkArgument(key != null);
 
@@ -220,8 +209,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         }
     }
 
-    @Override
-    public void invalidateAll(Iterable<?> keys) {
+    public @Override void invalidateAll(Iterable<?> keys) {
 
         Preconditions.checkArgument(keys != null);
 
@@ -231,8 +219,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         }
     }
 
-    @Override
-    public void invalidateAll() {
+    public @Override void invalidateAll() {
 
         final Collection<Segment> abandons = _navigableSegments.asMapOfRanges().values();
 
@@ -247,8 +234,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         getEventBus().post(new PostInvalidateAllEvent(abandons, this));
     }
 
-    @Override
-    public long size() {
+    public @Override long size() {
 
         long size = 0L;
 
@@ -259,24 +245,20 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         return size;
     }
 
-    @Override
-    public CacheStats stats() {
+    public @Override CacheStats stats() {
         return null;
     }
 
-    @Override
-    public ConcurrentMap<K, V> asMap() {
+    public @Override ConcurrentMap<K, V> asMap() {
 
         throw new UnsupportedOperationException("You don't really want a huge map like this :)");
     }
 
-    @Override
-    public void cleanUp() {
+    public @Override void cleanUp() {
 
     }
 
-    @Override
-    public boolean using(final BinDocument document) {
+    public @Override boolean using(final BinDocument document) {
 
         final int hashCode = document.getHashCode();
         final int segmentCode = getSegmentCode(hashCode);
@@ -285,8 +267,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         return zone.using(document);
     }
 
-    @Override
-    public void forget(final BinDocument document, final RemovalCause cause) {
+    public @Override void forget(final BinDocument document, final RemovalCause cause) {
 
         final int hashCode = document.getHashCode();
         final int segmentCode = getSegmentCode(hashCode);
@@ -295,8 +276,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         zone.forget(document, cause);
     }
 
-    @Override
-    public void refresh(final BinDocument document) {
+    public @Override void refresh(final BinDocument document) {
 
         final int hashCode = document.getHashCode();
         final int segmentCode = getSegmentCode(hashCode);
