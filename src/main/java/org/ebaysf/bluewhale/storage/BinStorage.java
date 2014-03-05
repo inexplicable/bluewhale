@@ -10,6 +10,13 @@ import java.io.IOException;
  */
 public interface BinStorage extends Iterable<BinJournal> {
 
+
+    enum InspectionReport {
+        EvictionRequired,
+        CompressionRequired,
+        RemainAsIs
+    }
+
     /**
      * where the journals are stored, could be temporary folders
      * @return

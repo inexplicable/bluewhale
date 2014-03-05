@@ -12,6 +12,7 @@ import org.brettw.SparseBitSet;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.document.BinDocumentFactory;
 import org.ebaysf.bluewhale.event.PostExpansionEvent;
+import org.ebaysf.bluewhale.event.PostInvestigationEvent;
 import org.ebaysf.bluewhale.util.Files;
 
 import java.io.File;
@@ -35,11 +36,6 @@ public class BinStorageImpl implements BinStorage {
             return input.currentState().isEvicted();
         }
     };
-    public static enum InspectionReport {
-        EvictionRequired,
-        CompressionRequired,
-        RemainAsIs
-    }
 
     private static final Logger LOG = Logger.getLogger(BinStorageImpl.class.getName());
 
@@ -57,6 +53,7 @@ public class BinStorageImpl implements BinStorage {
 
     protected volatile BinJournal _journaling;
     protected volatile RangeMap<Integer, BinJournal> _navigableJournals;
+    protected volatile ListenableFuture<ListMultimap<InspectionReport, BinJournal>> _openInvestigation;
 
     public BinStorageImpl(final File local,
                           final BinDocumentFactory factory,
@@ -334,108 +331,115 @@ public class BinStorageImpl implements BinStorage {
 
         _navigableJournals = builder.build();
 
-        final ListenableFuture<ListMultimap<InspectionReport, BinJournal>> inspected = _executor.submit(new Callable<ListMultimap<InspectionReport,BinJournal>>() {
-            public @Override ListMultimap<InspectionReport, BinJournal> call() throws Exception {
+        if(_openInvestigation == null){
+            //there're cannot be 2 open investigations at the same time, too much cost
+            _openInvestigation = _executor.submit(new Callable<ListMultimap<InspectionReport,BinJournal>>() {
+                public @Override ListMultimap<InspectionReport, BinJournal> call() throws Exception {
 
-                final ListMultimap<InspectionReport, BinJournal> investigation = Multimaps.newListMultimap(
-                        Maps.<InspectionReport, Collection<BinJournal>>newHashMap(),
-                        new Supplier<List<BinJournal>>() {
-                            public @Override List<BinJournal> get() {
-                                return Lists.newLinkedList();
+                    final ListMultimap<InspectionReport, BinJournal> investigation = Multimaps.newListMultimap(
+                            Maps.<InspectionReport, Collection<BinJournal>>newHashMap(),
+                            new Supplier<List<BinJournal>>() {
+                                public @Override List<BinJournal> get() {
+                                    return Lists.newLinkedList();
+                                }
+                            });
+
+                    int forced = _navigableJournals.asMapOfRanges().size() - getMaxJournals();
+
+                    for(BinJournal journal : BinStorageImpl.this){
+
+                        if(!journal.currentState().isMemoryMapped()){
+
+                            if((forced -= 1) >= 0){
+                                LOG.info(String.format("[storage] forced out aging journal:%s", journal));
+                                investigation.put(InspectionReport.EvictionRequired, journal);
+                                continue;
                             }
-                        });
 
-                int forced = _navigableJournals.asMapOfRanges().size() - getMaxJournals();
+                            LOG.info(String.format("[storage] make investigation on aging journal:%s", journal));
 
-                for(BinJournal journal : BinStorageImpl.this){
+                            final JournalUsage usage = journal.usage();
+                            final SparseBitSet alives = usage.getAlives();
+                            int index = 0;
 
-                    if(!journal.currentState().isMemoryMapped()){
-
-                        if((forced -= 1) >= 0){
-                            LOG.info(String.format("[storage] forced out aging journal:%s", journal));
-                            investigation.put(InspectionReport.EvictionRequired, journal);
-                            continue;
-                        }
-
-                        LOG.info(String.format("[storage] make investigation on aging journal:%s", journal));
-
-                        final JournalUsage usage = journal.usage();
-                        final SparseBitSet alives = usage.getAlives();
-                        int index = 0;
-
-                        for(Iterator<BinDocument> it = journal.iterator(); it.hasNext(); index += 1){
-                            final BinDocument suspect = it.next();
-                            if(alives.get(index)){
-                                alives.set(index, _usageTrack.using(suspect));
+                            for(Iterator<BinDocument> it = journal.iterator(); it.hasNext(); index += 1){
+                                final BinDocument suspect = it.next();
+                                if(alives.get(index)){
+                                    alives.set(index, _usageTrack.using(suspect));
+                                }
+                                if(alives.cardinality() > journal.getDocumentSize() * 0.1f){
+                                    break;//no more investigation needed upon this journal till suspect time.
+                                }
                             }
-                            if(alives.cardinality() > journal.getDocumentSize() * 0.1f){
-                                break;//no more investigation needed upon this journal till suspect time.
-                            }
-                        }
 
-                        if(usage.isAllDead()){
-                            investigation.put(InspectionReport.EvictionRequired, journal);
-                        }
-                        else if(usage.getUsageRatio() < 0.1f){
-                            investigation.put(InspectionReport.CompressionRequired, journal);
-                        }
-                        else{
-                            investigation.put(InspectionReport.RemainAsIs, journal);
+                            if(usage.isAllDead()){
+                                investigation.put(InspectionReport.EvictionRequired, journal);
+                            }
+                            else if(usage.getUsageRatio() < 0.1f){
+                                investigation.put(InspectionReport.CompressionRequired, journal);
+                            }
+                            else{
+                                investigation.put(InspectionReport.RemainAsIs, journal);
+                            }
                         }
                     }
+
+                    LOG.info(String.format("[storage] investigation completed:%s", investigation));
+
+                    _eventBus.post(new PostInvestigationEvent(investigation));
+
+                    return investigation;
                 }
+            });
+        }
+    }
 
-                LOG.info(String.format("[storage] investigation completed:%s", investigation));
+    @Subscribe
+    public void onPostInvestigation(final PostInvestigationEvent event){
+        try {
+            final ListMultimap<InspectionReport, BinJournal> report = event.getSource();
 
-                return investigation;
+            LOG.info(String.format("[storage] investigation report:%s to be handled", report));
+            final Set<BinJournal> exclusions = Sets.newIdentityHashSet();
+            for(BinJournal journal : report.get(InspectionReport.EvictionRequired)){
+                for(BinDocument evict: journal){
+                    if(_usageTrack.using(evict)){
+                        _usageTrack.forget(evict, RemovalCause.SIZE);
+                    }
+                }
+                exclusions.add(journal);
             }
-        });
 
-        inspected.addListener(new Runnable() {
-            public @Override void run() {
-                try {
-                    _lock.lock();
-                    final ListMultimap<InspectionReport, BinJournal> report = inspected.get();
-
-                    LOG.info(String.format("[storage] investigation report:%s to be handled", report));
-                    final Set<BinJournal> exclusions = Sets.newIdentityHashSet();
-                    for(BinJournal journal : report.get(InspectionReport.EvictionRequired)){
-                        for(BinDocument evict: journal){
-                            if(_usageTrack.using(evict)){
-                                _usageTrack.forget(evict, RemovalCause.SIZE);
-                            }
-                        }
-                        exclusions.add(journal);
+            for(BinJournal journal : report.get(InspectionReport.CompressionRequired)){
+                for(BinDocument compress: journal){
+                    if(_usageTrack.using(compress)){
+                        _usageTrack.refresh(compress);
                     }
-
-                    for(BinJournal journal : report.get(InspectionReport.CompressionRequired)){
-                        for(BinDocument compress: journal){
-                            if(_usageTrack.using(compress)){
-                                _usageTrack.refresh(compress);
-                            }
-                        }
-                        exclusions.add(journal);
-                    }
-
-                    final ImmutableRangeMap.Builder<Integer, BinJournal> builder = ImmutableRangeMap.builder();
-
-                    for(Map.Entry<Range<Integer>, BinJournal> entry : _navigableJournals.asMapOfRanges().entrySet()) {
-                        if(!exclusions.contains(entry.getValue())){
-                            builder.put(entry.getKey(), entry.getValue());
-                        }
-                    }
-
-                    _navigableJournals = builder.build();
                 }
-                catch(Exception ex){
-                    LOG.warning(Throwables.getStackTraceAsString(ex));
-                }
-                finally {
-                    _lock.unlock();
-                }
-
+                exclusions.add(journal);
             }
-        }, _executor);
+
+            _openInvestigation = null;
+
+            _lock.lock();
+
+            final ImmutableRangeMap.Builder<Integer, BinJournal> builder = ImmutableRangeMap.builder();
+
+            for(Map.Entry<Range<Integer>, BinJournal> entry : _navigableJournals.asMapOfRanges().entrySet()) {
+                if(!exclusions.contains(entry.getValue())){
+                    builder.put(entry.getKey(), entry.getValue());
+                }
+            }
+
+            _navigableJournals = builder.build();
+
+        }
+        catch(Exception ex){
+            LOG.warning(Throwables.getStackTraceAsString(ex));
+        }
+        finally {
+            _lock.unlock();
+        }
     }
 
 }
