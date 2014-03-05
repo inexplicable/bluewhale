@@ -4,7 +4,6 @@ import com.google.common.base.Strings;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.Lists;
-import com.google.common.eventbus.AsyncEventBus;
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -29,8 +28,8 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class CacheTest {
 
-    private static final ListeningExecutorService _executor = MoreExecutors.listeningDecorator(Executors.newCachedThreadPool());
-    private static final EventBus _eventBus = new AsyncEventBus(_executor);
+    private static final ExecutorService _executor = Executors.newCachedThreadPool();
+    private static final ListeningExecutorService _listenableExecutor = MoreExecutors.listeningDecorator(_executor);
 
     @AfterClass
     public static void afterClass(){
@@ -41,13 +40,14 @@ public class CacheTest {
     public void testCacheImpl() throws IOException, ExecutionException {
 
         final File temp = Files.createTempDir();
+        final EventBus eventBus = new EventBus();
 
         final Cache<String, String> cache = new CacheImpl<String, String>(temp,
                 2,
                 Serializers.STRING_SERIALIZER,
                 Serializers.STRING_SERIALIZER,
-                _eventBus,
-                _executor,
+                eventBus,
+                _listenableExecutor,
                 new RemovalListener<String, String>() {
                     @Override
                     public void onRemoval(RemovalNotification<String, String> notification) {
@@ -75,13 +75,14 @@ public class CacheTest {
     public void testCachePerf() throws IOException, ExecutionException {
 
         final File temp = Files.createTempDir();
+        final EventBus eventBus = new EventBus();
 
         final Cache<String, String> cache = new CacheImpl<String, String>(temp,
                 2,
                 Serializers.STRING_SERIALIZER,
                 Serializers.STRING_SERIALIZER,
-                _eventBus,
-                _executor,
+                eventBus,
+                _listenableExecutor,
                 new RemovalListener<String, String>() {
                     @Override
                     public void onRemoval(RemovalNotification<String, String> notification) {
@@ -132,6 +133,7 @@ public class CacheTest {
     public void testConcurrentCachePerf() throws IOException, ExecutionException {
 
         final File temp = Files.createTempDir();
+        final EventBus eventBus = new EventBus();
         final AtomicLong durations = new AtomicLong(0L);
         final ExecutorService concurrency = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() / 2 + 1);
 
@@ -139,8 +141,8 @@ public class CacheTest {
                 2,
                 Serializers.STRING_SERIALIZER,
                 Serializers.STRING_SERIALIZER,
-                _eventBus,
-                _executor,
+                eventBus,
+                _listenableExecutor,
                 new RemovalListener<String, String>() {
                     @Override
                     public void onRemoval(RemovalNotification<String, String> notification) {

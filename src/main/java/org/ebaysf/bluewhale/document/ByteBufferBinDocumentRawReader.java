@@ -11,14 +11,6 @@ import java.util.zip.CRC32;
  */
 public class ByteBufferBinDocumentRawReader implements BinDocumentFactory.BinDocumentReader {
 
-    public static final int OFFSET_OF_NEXT = BYTES_OF_LONG;//state & lengths
-    public static final int OFFSET_OF_HASHCODE = OFFSET_OF_NEXT
-            + BYTES_OF_LONG;//next token
-    public static final int OFFSET_OF_LASTMODIFIED = OFFSET_OF_HASHCODE
-            + BYTES_OF_INT; //hash code
-    public static final int OFFSET_OF_KEY = OFFSET_OF_LASTMODIFIED
-            + BYTES_OF_LONG;//last modified
-
     private final ByteBuffer _buffer;
     private final int _offset;
     private final byte _state;

@@ -27,6 +27,14 @@ public interface BinDocumentFactory {
         long MASK_OF_KEY_LENGTH = -1L >>> (Byte.SIZE + Long.SIZE);
         long MASK_OF_VAL_LENGTH = -1L >>> (Long.SIZE + 1L);
 
+        int OFFSET_OF_NEXT = BYTES_OF_LONG;//state & lengths
+        int OFFSET_OF_HASHCODE = OFFSET_OF_NEXT
+                + BYTES_OF_LONG;//next token
+        int OFFSET_OF_LASTMODIFIED = OFFSET_OF_HASHCODE
+                + BYTES_OF_INT; //hash code
+        int OFFSET_OF_KEY = OFFSET_OF_LASTMODIFIED
+                + BYTES_OF_LONG;//last modified
+
         BinDocument read() throws IOException;
 
         BinDocument verify() throws IOException;

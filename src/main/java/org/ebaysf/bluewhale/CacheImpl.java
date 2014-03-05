@@ -325,7 +325,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
     }
 
     @Subscribe
-    protected void onSegmentSplit(final SegmentSplitEvent event){
+    public void onSegmentSplit(final SegmentSplitEvent event){
 
         final Segment before = event.before();
 
@@ -338,7 +338,13 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
 
         final List<Segment> after = event.after();
         for(Segment child : after){
-            modifying.put(child.range(), child);
+            try{
+                modifying.put(child.range(), child);
+            }
+            catch(Exception e){
+                e.printStackTrace();
+                System.err.printf("[before]\t%s\n[after]%s\n", before, after);
+            }
         }
 
         _navigableSegments = modifying.build();
@@ -348,7 +354,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
 
     @Subscribe
     @AllowConcurrentEvents
-    protected void onRemovalNotification(final RemovalNotificationEvent event){
+    public void onRemovalNotification(final RemovalNotificationEvent event){
 
         final BinDocument document = event.getSource();
         final RemovalCause cause = event.getRemovalCase();

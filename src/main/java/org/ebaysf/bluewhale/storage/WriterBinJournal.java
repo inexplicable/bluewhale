@@ -19,11 +19,12 @@ public class WriterBinJournal extends ByteBufferBinJournal {
     public WriterBinJournal(final File local,
                             final Range<Integer> journalRange,
                             final JournalsManager manager,
+                            final JournalUsage usage,
                             final BinDocumentFactory factory,
                             final int length,
                             final ByteBuffer buffer) {
 
-        super(local, JournalState.BufferedWritable, journalRange, manager, factory, length, buffer);
+        super(local, JournalState.BufferedWritable, journalRange, manager, usage, factory, length, buffer);
 
         _offset = new AtomicInteger(0);
     }

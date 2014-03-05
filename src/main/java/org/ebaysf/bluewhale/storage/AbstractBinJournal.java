@@ -18,17 +18,19 @@ public abstract class AbstractBinJournal implements BinJournal {
     protected final JournalsManager _manager;
     protected final BinDocumentFactory _factory;
     protected volatile int _size;
-    protected volatile JournalUsage _usage;
+    protected final JournalUsage _journalUsage;
 
     public AbstractBinJournal(final File local,
                               final JournalState state,
                               final Range<Integer> range,
                               final JournalsManager manager,
+                              final JournalUsage usage,
                               final BinDocumentFactory factory,
                               final int length){
         _local = local;
         _state = state;
         _journalRange = range;
+        _journalUsage = usage;
         _length = length;
 
         _manager = manager;
@@ -58,7 +60,7 @@ public abstract class AbstractBinJournal implements BinJournal {
 
 
     public @Override JournalUsage usage() {
-        return _usage;
+        return _journalUsage;
     }
 
     public @Override String toString(){

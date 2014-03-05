@@ -381,19 +381,18 @@ public class LeafSegment extends AbstractSegment {
     }
 
     @Subscribe
-    protected void onPostSegmentSplit(final PostSegmentSplitEvent event) {
+    public void onPostSegmentSplit(final PostSegmentSplitEvent event) {
 
         if(event.getSource() == this){
 
             LOG.info("[segment] split occurred");
-            _belongsTo.getEventBus().unregister(this);
             _manager.freeUpBuffer(_mmap);
         }
     }
 
     @Subscribe
     @AllowConcurrentEvents
-    protected void onPostInvalidateAll(final PostInvalidateAllEvent event){
+    public void onPostInvalidateAll(final PostInvalidateAllEvent event){
 
         final Collection<Segment> abandons = event.getSource();
 
@@ -406,7 +405,7 @@ public class LeafSegment extends AbstractSegment {
     }
 
     @Subscribe
-    protected void onPathTooLong(final PathTooLongEvent event){
+    public void onPathTooLong(final PathTooLongEvent event){
 
         if(event.getSource() == this){
 

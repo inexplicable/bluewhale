@@ -26,7 +26,7 @@ public class FileChannelBinDocumentRawReader implements BinDocumentFactory.BinDo
         _buffer = ByteBuffer.allocate(anticipatedLength);
         _fch.read(_buffer, offset);
 
-        final long statesAndLengths = _buffer.getLong(offset);
+        final long statesAndLengths = _buffer.getLong(0);
         _state = (byte)(statesAndLengths >>> SHIFTS_OF_STATE);
         _keyLength = (int)(MASK_OF_KEY_LENGTH & (statesAndLengths >>> SHIFTS_OF_KEY_LENGTH));
         _valLength = (int)(MASK_OF_VAL_LENGTH & statesAndLengths);
@@ -42,27 +42,27 @@ public class FileChannelBinDocumentRawReader implements BinDocumentFactory.BinDo
 
     public @Override ByteBuffer getKey() {
         final ByteBuffer keyBuffer = _buffer.duplicate();
-        keyBuffer.position(20).limit(20 + _keyLength);
+        keyBuffer.position(OFFSET_OF_KEY).limit(OFFSET_OF_KEY + _keyLength);
         return keyBuffer;
     }
 
     public @Override ByteBuffer getValue() {
         final ByteBuffer valBuffer = _buffer.duplicate();
-        final int pos = 20 + _keyLength;
+        final int pos = OFFSET_OF_KEY + _keyLength;
         valBuffer.position(pos).limit(pos + _valLength);
         return valBuffer;
     }
 
     public @Override int getHashCode() {
-        return _buffer.getInt(16);
+        return _buffer.getInt(OFFSET_OF_HASHCODE);
     }
 
     public @Override long getNext() {
-        return _buffer.getLong(8);
+        return _buffer.getLong(OFFSET_OF_NEXT);
     }
 
     public @Override long getLastModified() {
-        return _buffer.getLong(20 + _keyLength + _valLength);
+        return _buffer.getLong(OFFSET_OF_LASTMODIFIED);
     }
 
     public @Override byte getState() {

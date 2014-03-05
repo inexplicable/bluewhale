@@ -219,7 +219,7 @@ public class BinStorageImpl implements BinStorage {
 
         final File next = Files.newJournalFile(dir);
 
-        return new WriterBinJournal(next, range, _manager, _factory, _journalLength, com.google.common.io.Files.map(next, FileChannel.MapMode.READ_WRITE, _journalLength));
+        return new WriterBinJournal(next, range, _manager, new JournalUsageImpl(System.nanoTime(), 0), _factory, _journalLength, com.google.common.io.Files.map(next, FileChannel.MapMode.READ_WRITE, _journalLength));
     }
 
     protected void acceptWritable(final WriterBinJournal writable) {
@@ -263,6 +263,7 @@ public class BinStorageImpl implements BinStorage {
         return new FileChannelBinJournal(journal.local(),
                 journal.range(),
                 _manager,
+                journal.usage(),
                 _factory,
                 journal.getJournalLength(),
                 journal.getDocumentSize(),
@@ -270,7 +271,7 @@ public class BinStorageImpl implements BinStorage {
     }
 
     @Subscribe
-    protected void postExpansion(final PostExpansionEvent event) {
+    public void postExpansion(final PostExpansionEvent event) {
 
         LOG.info("[storage] post expansion handling");
 
@@ -288,16 +289,18 @@ public class BinStorageImpl implements BinStorage {
         //iterate by last modified
         for(BinJournal journal : this) {
             if(!Objects.equal(previous.range(), journal.range())){
+                if(journal.currentState().isMemoryMapped()){
+                    memoryMappedJournals.put(journal.range(), journal);
+                    continue;
+                }
                 builder.put(journal.range(), journal);
-            }
-            if(journal.currentState().isMemoryMapped()){
-                memoryMappedJournals.put(journal.range(), journal);
             }
         }
 
         //check for downgrades
         int downgrades = memoryMappedJournals.size() - _maxMemoryMappedJournals + 1;
-        for(Iterator<Map.Entry<Range<Integer>, BinJournal>> it = memoryMappedJournals.entrySet().iterator(); it.hasNext() && downgrades > 0;){
+        LOG.info(String.format("[storage] downgrades:%d memoryMappedJournals", downgrades));
+        for(Iterator<Map.Entry<Range<Integer>, BinJournal>> it = memoryMappedJournals.entrySet().iterator(); it.hasNext() && downgrades > 0; downgrades -= 1){
 
             final Map.Entry<Range<Integer>, BinJournal> entry = it.next();
             try {
@@ -314,13 +317,17 @@ public class BinStorageImpl implements BinStorage {
                 BinJournal.JournalState.BufferedReadOnly,
                 previous.range(),
                 _manager,
+                new JournalUsageImpl(previous.usage().getLastModified(), previous.getDocumentSize()),
                 _factory,
                 previous.getJournalLength(),
                 previous.getMemoryMappedBuffer()));
 
+        //keep writable in it
+        builder.put(_journaling.range(), _journaling);
+
         _navigableJournals = builder.build();
 
-        final ListenableFuture<ListMultimap<InspectionReport, BinJournal>> inspected = _executor.submit(new Callable<ListMultimap<InspectionReport, BinJournal>>() {
+        final ListenableFuture<ListMultimap<InspectionReport, BinJournal>> inspected = _executor.submit(new Callable<ListMultimap<InspectionReport,BinJournal>>() {
             @Override
             public ListMultimap<InspectionReport, BinJournal> call() throws Exception {
 

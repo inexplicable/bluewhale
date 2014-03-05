@@ -35,12 +35,13 @@ public class FileChannelBinJournal extends AbstractBinJournal {
     public FileChannelBinJournal(final File local,
                                  final Range<Integer> journalRange,
                                  final JournalsManager manager,
+                                 final JournalUsage usage,
                                  final BinDocumentFactory factory,
                                  final int length,
                                  final int size,
                                  final int documentLength90) throws FileNotFoundException {
 
-        super(local, JournalState.FileChannelReadOnly, journalRange, manager, factory, length);
+        super(local, JournalState.FileChannelReadOnly, journalRange, manager, usage, factory, length);
 
         _raf = new RandomAccessFile(local(), "r");
         _fch = _raf.getChannel();
@@ -115,7 +116,7 @@ public class FileChannelBinJournal extends AbstractBinJournal {
     }
 
     @Subscribe
-    protected void onDocumentLengthAnticipated(final DocumentLengthAnticipatedEvent event){
+    public void onDocumentLengthAnticipated(final DocumentLengthAnticipatedEvent event){
         if(event.getSource() == this){
             _manager._eventBus.unregister(this);
             _documentLength90 = event.getDocumentLengthAnticipated();
