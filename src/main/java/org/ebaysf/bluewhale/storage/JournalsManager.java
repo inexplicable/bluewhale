@@ -27,7 +27,10 @@ public class JournalsManager {
     private final RemovalListener<ByteBuffer, BinJournal> _journalsNoLongUsedListener = new RemovalListener<ByteBuffer, BinJournal>() {
         public @Override void onRemoval(RemovalNotification<ByteBuffer, BinJournal> notification) {
 			if(RemovalCause.COLLECTED.equals(notification.getCause())){
-                _bufferRefsWatchers.get(notification.getKey()).onRemoval(notification);
+                final RemovalListener<ByteBuffer, BinJournal> watcher = _bufferRefsWatchers.get(notification.getKey());
+                if(watcher != null){
+                   watcher.onRemoval(notification);
+                }
 			}
 		}
 	};

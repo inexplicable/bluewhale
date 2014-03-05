@@ -283,7 +283,7 @@ public class LeafSegment extends AbstractSegment {
 
     protected void split() throws IOException {
 
-        LOG.info("[segment] split into lower & upper");
+        LOG.fine("[segment] split into lower & upper");
 
         final int lowerBound = range().lowerEndpoint();
         final int upperBound = range().upperEndpoint();
@@ -383,7 +383,7 @@ public class LeafSegment extends AbstractSegment {
 
         if(event.getSource() == this){
 
-            LOG.info(String.format("[segment] split occurred %s -> %s,%s", this, _lower, _upper));
+            LOG.fine(String.format("[segment] split occurred %s -> %s,%s", this, _lower, _upper));
             _manager.freeUpBuffer(_mmap);
         }
     }
@@ -407,7 +407,7 @@ public class LeafSegment extends AbstractSegment {
 
         if(event.getSource() == this){
 
-            LOG.info("[segment] path too long, optimization triggered");
+            LOG.fine("[segment] path too long, optimization triggered");
 
             final int offset = event.getOffset();
             final long headTokenExpected = event.getHeadToken();

@@ -55,7 +55,7 @@ public class FileChannelBinJournal extends AbstractBinJournal {
 
                     final BinJournal self = FileChannelBinJournal.this;
 
-                    LOG.fine("[anticipating] ".concat(self.toString()));
+                    LOG.info("[anticipating] ".concat(self.toString()));
                     //use average length 1st, we'll then use 90% or better to find a better idea.
                     final int mostLengthy = IntMath.divide(self.getDocumentSize() * 9, 10, RoundingMode.FLOOR);
                     Preconditions.checkState(mostLengthy > 0);
@@ -77,7 +77,7 @@ public class FileChannelBinJournal extends AbstractBinJournal {
                     }
                     //return the least/head of the minHeap, which is larger than 90% of the documents in this journal
                     final Integer greaterThan90Percents =  minHeap.poll().intValue();
-                    LOG.fine(new StringBuilder()
+                    LOG.info(new StringBuilder()
                             .append("[anticipated] ").append(self).append(" will use:")
                             .append(greaterThan90Percents).append(" Bytes for future reads").toString());
 
@@ -108,6 +108,7 @@ public class FileChannelBinJournal extends AbstractBinJournal {
     public @Override Iterator<BinDocument> iterator() {
 
         try{
+            LOG.info("[FileChannelBinJournal] iterator started");
             return new BinDocumentBlockIterator(0);
         }
         catch(IOException e){
@@ -137,11 +138,12 @@ public class FileChannelBinJournal extends AbstractBinJournal {
         private BinDocument _next;
 
         public BinDocumentBlockIterator(final int offset) throws IOException{
-            _fileLength = _fch.size();
+            _fileLength = getJournalLength();
             //block size must be [anticipatedLength, MAX_BLOCK_SIZE]
             _block = ByteBuffer.allocate(Math.max(_documentLength90, Math.min(MAX_BLOCK_SIZE, _documentLength90 << 4)));
 
             _offsetAtFile = offset;
+            _block.limit(Math.min(_block.capacity(), getJournalLength()));
             _offsetAtFile += _fch.read(_block, offset);
             _block.rewind();
             _next = readNext();
@@ -188,6 +190,7 @@ public class FileChannelBinJournal extends AbstractBinJournal {
             }
             catch (IOException e) {
 
+                e.printStackTrace();
             }
             return null;
         }
@@ -195,7 +198,9 @@ public class FileChannelBinJournal extends AbstractBinJournal {
         protected void refreshBlock(int mark) throws IOException {
             _block.rewind();
             _offsetAtFile -= _block.limit() - mark;
-            _offsetAtFile += _fch.read(_block, _offsetAtFile);
+            _block.limit(Math.min(_block.capacity(), getJournalLength() - _offsetAtFile));
+            final int read = _fch.read(_block, _offsetAtFile);
+            _offsetAtFile += read;
             _block.rewind();
         }
 

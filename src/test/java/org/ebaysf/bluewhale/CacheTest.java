@@ -72,7 +72,7 @@ public class CacheTest {
     }
 
     @Test
-    public void testCachePerf() throws IOException, ExecutionException {
+    public void testCachePerf() throws IOException, ExecutionException, InterruptedException {
 
         final File temp = Files.createTempDir();
         final EventBus eventBus = new EventBus();
@@ -95,7 +95,7 @@ public class CacheTest {
                 2,
                 Collections.<BinJournal>emptyList());
 
-        final String[] candidates = new String[10000];
+        final String[] candidates = new String[20000];
         for(int i = 0; i < candidates.length; i += 1){
             candidates[i] = Strings.padStart(String.valueOf(i), 100, '*');//100bytes apprx
         }
@@ -107,7 +107,7 @@ public class CacheTest {
             Assert.assertNull(cache.getIfPresent(c));
         }
 
-        System.out.printf("[sequential] 10k sized cache, 100bytes key, 100bytes value, getIfPresent took: %dns\n", (System.nanoTime() - begin) / 10000);
+        System.out.printf("[sequential] 10k sized cache, 100bytes key, 100bytes value, getIfPresent took: %dns\n", (System.nanoTime() - begin) / candidates.length);
 
         begin = System.nanoTime();
         for(final String c : candidates){
@@ -118,15 +118,16 @@ public class CacheTest {
             }));
         }
 
-        System.out.printf("[sequential] 10k sized cache, 100bytes key, 100bytes value, get took: %dns\n", (System.nanoTime() - begin) / 10000);
+        System.out.printf("[sequential] 10k sized cache, 100bytes key, 100bytes value, get took: %dns\n", (System.nanoTime() - begin) / candidates.length);
 
         begin = System.nanoTime();
         for(final String c : candidates){
             Assert.assertEquals(c, cache.getIfPresent(c));
         }
 
-        System.out.printf("[sequential] 10k sized cache, 100bytes key, 100bytes value, getIfPresent took: %dns\n", (System.nanoTime() - begin) / 10000);
+        System.out.printf("[sequential] 10k sized cache, 100bytes key, 100bytes value, getIfPresent took: %dns\n", (System.nanoTime() - begin) / candidates.length);
 
+        TimeUnit.SECONDS.sleep(30);
     }
 
     @Test

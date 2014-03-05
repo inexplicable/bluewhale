@@ -50,4 +50,9 @@ public class WriterBinJournal extends ByteBufferBinJournal {
         }
     }
 
+    public @Override int getJournalLength(){
+
+        return _mmap.limit();
+    }
+
 }

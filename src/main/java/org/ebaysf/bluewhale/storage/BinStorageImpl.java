@@ -46,8 +46,6 @@ public class BinStorageImpl implements BinStorage {
     private static final Logger LOG = Logger.getLogger(BinStorageImpl.class.getName());
 
     private final File _local;
-    private final JournalsManager _manager;
-    private final BinDocumentFactory _factory;
     private final int _journalLength;
     private final int _maxJournals;
     private final int _maxMemoryMappedJournals;
@@ -55,6 +53,9 @@ public class BinStorageImpl implements BinStorage {
     private final ListeningExecutorService _executor;
     private final UsageTrack _usageTrack;
     private final ReentrantLock _lock;
+
+    protected final JournalsManager _manager;
+    protected final BinDocumentFactory _factory;
 
     protected volatile BinJournal _journaling;
     protected volatile RangeMap<Integer, BinJournal> _navigableJournals;
@@ -182,6 +183,7 @@ public class BinStorageImpl implements BinStorage {
             }
         });
 
+        LOG.info(String.format("[storage] iteration ordered:%s", orderedByLastModified));
         return orderedByLastModified.iterator();
     }
 
@@ -302,14 +304,16 @@ public class BinStorageImpl implements BinStorage {
 
         //make previous writable readonly
         LOG.info("[storage] make previous writable immutable");
-        builder.put(previous.range(), new ByteBufferBinJournal(previous.local(),
+        final ByteBufferBinJournal immutable = new ByteBufferBinJournal(previous.local(),
                 BinJournal.JournalState.BufferedReadOnly,
                 previous.range(),
                 _manager,
                 new JournalUsageImpl(previous.usage().getLastModified(), previous.getDocumentSize()),
                 _factory,
                 previous.getJournalLength(),
-                previous.getMemoryMappedBuffer()));
+                previous.getMemoryMappedBuffer());
+        immutable._size = previous.getDocumentSize();
+        builder.put(previous.range(), immutable);
 
         //keep writable in it
         builder.put(_journaling.range(), _journaling);
@@ -357,6 +361,8 @@ public class BinStorageImpl implements BinStorage {
                         }
                     }
                 }
+
+                LOG.info(String.format("[storage] investigation completed:%s", investigation));
 
                 return investigation;
             }

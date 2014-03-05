@@ -17,6 +17,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.concurrent.Executors;
 
 /**
@@ -85,5 +86,65 @@ public class BinStorageTest {
 
         Assert.assertEquals(0L, storage.append(small));
         Assert.assertEquals(small, storage.read(0L));
+    }
+
+    @Test
+    public void testOverflowAndIteration() throws IOException, InterruptedException {
+
+        final File temp = Files.createTempDir();
+
+        final BinStorageImpl storage = new BinStorageImpl(temp,
+                BinDocumentFactories.RAW,
+                1 << 10,//1KB JOURNAL LENGTH
+                8,  //8MB TOTAL JOURNAL BYTES
+                2,
+                Collections.<BinJournal>emptyList(),
+                _eventBus,
+                _executor,
+                Mockito.mock(UsageTrack.class));
+
+        final BinJournal overflow = storage.nextWritable(temp);
+
+        Assert.assertNotNull(overflow);
+
+        final BinDocument small = new BinDocumentRaw()
+                .setHashCode(1)
+                .setKey(ByteBuffer.allocate(0))
+                .setValue(ByteBuffer.allocate(0))
+                .setLastModified(System.nanoTime())
+                .setNext(-1L)
+                .setState((byte)0x00);
+
+        int count = 0, pos = 0;
+        for(int offset = overflow.append(small); offset >= 0; count += 1, pos += small.getLength(), offset = overflow.append(small)){
+            Assert.assertEquals(small, overflow.read(offset));
+        }
+
+        Assert.assertEquals(pos, overflow.getMemoryMappedBuffer().limit());
+
+        int meet = 0;
+        for(Iterator<BinDocument> it = overflow.iterator(); it.hasNext(); meet += 1){
+            Assert.assertEquals(small, it.next());
+        }
+
+        Assert.assertEquals(count, meet);
+
+        final BinJournal downgrade = new FileChannelBinJournal(overflow.local(),
+                overflow.range(),
+                storage._manager,
+                overflow.usage(),
+                storage._factory,
+                overflow.getJournalLength(),
+                overflow.getDocumentSize(),
+                -1);
+
+        Assert.assertNotNull(downgrade);
+
+        meet = 0;
+        for(Iterator<BinDocument> it = downgrade.iterator(); it.hasNext(); meet += 1){
+            Assert.assertEquals(small, it.next());
+        }
+
+        Assert.assertEquals(count, meet);
     }
 }

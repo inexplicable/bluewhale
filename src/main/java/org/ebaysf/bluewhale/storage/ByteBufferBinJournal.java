@@ -67,6 +67,7 @@ public class ByteBufferBinJournal extends AbstractBinJournal {
             _buffer = buffer;
             _offset = offset;
             _doc = _factory.getReader(buffer, _offset).verify();
+            _offset += _doc.getLength();
         }
 
         public @Override boolean hasNext() {
@@ -74,16 +75,19 @@ public class ByteBufferBinJournal extends AbstractBinJournal {
         }
 
         public @Override BinDocument next() {
+
             final BinDocument doc = _doc;
-            final int length = doc.getLength();
-            _offset += length;
             if(_offset < _buffer.limit()){
                 try {
                     _doc = _factory.getReader(_buffer, _offset).verify();
+                    _offset += _doc.getLength();
                 }
-                catch (IOException e) {
+                catch (Exception e) {
                     _doc = null;
                 }
+            }
+            else{
+                _doc = null;
             }
             return doc;
         }
