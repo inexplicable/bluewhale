@@ -83,7 +83,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         _executor = Preconditions.checkNotNull(executor);
         _removalListener = Preconditions.checkNotNull(removalListener);
 
-        _manager = new SegmentsManager(local, Integer.MAX_VALUE >> (concurrencyLevel + maxSegmentDepth), this);
+        _manager = new SegmentsManager(local, Segment.MAX_SEGMENTS >> (concurrencyLevel + maxSegmentDepth), this);
         _storage = new BinStorageImpl(local, factory, journalLength, maxJournals,
                 maxMemoryMappedJournals, loadings, eventBus, executor, this);
 

@@ -239,7 +239,12 @@ public class LeafSegment extends AbstractSegment {
      * @return
      * @throws IOException
      */
-    protected boolean isPutObsolete(final long next, final Put put) throws IOException{
+    protected boolean isPutObsolete(final long next, final Put put) throws IOException {
+
+        if(!put.refreshes()){
+            return false;
+        }
+
         final BinStorage bin = getStorage();
         //verify normal updates is ok
         for(BinDocument doc = bin.read(next); doc != null; doc = bin.read(doc.getNext())) {
@@ -283,7 +288,7 @@ public class LeafSegment extends AbstractSegment {
 
     protected void split() throws IOException {
 
-        LOG.fine("[segment] split into lower & upper");
+        LOG.info("[segment] split into lower & upper");
 
         final int lowerBound = range().lowerEndpoint();
         final int upperBound = range().upperEndpoint();
@@ -383,7 +388,7 @@ public class LeafSegment extends AbstractSegment {
 
         if(event.getSource() == this){
 
-            LOG.fine(String.format("[segment] split occurred %s -> %s,%s", this, _lower, _upper));
+            LOG.info(String.format("[segment] split occurred %s -> %s,%s", this, _lower, _upper));
             _manager.freeUpBuffer(_mmap);
         }
     }
@@ -407,7 +412,7 @@ public class LeafSegment extends AbstractSegment {
 
         if(event.getSource() == this){
 
-            LOG.fine("[segment] path too long, optimization triggered");
+            LOG.info("[segment] path too long, optimization triggered");
 
             final int offset = event.getOffset();
             final long headTokenExpected = event.getHeadToken();

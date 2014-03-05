@@ -1,6 +1,7 @@
 package org.ebaysf.bluewhale.storage;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Range;
 import com.google.common.eventbus.Subscribe;
@@ -108,10 +109,10 @@ public class FileChannelBinJournal extends AbstractBinJournal {
     public @Override Iterator<BinDocument> iterator() {
 
         try{
-            LOG.info("[FileChannelBinJournal] iterator started");
             return new BinDocumentBlockIterator(0);
         }
         catch(IOException e){
+            LOG.warning(Throwables.getStackTraceAsString(e));
             return Iterators.emptyIterator();
         }
     }
@@ -189,8 +190,7 @@ public class FileChannelBinJournal extends AbstractBinJournal {
                 }
             }
             catch (IOException e) {
-
-                e.printStackTrace();
+                LOG.warning(Throwables.getStackTraceAsString(e));
             }
             return null;
         }

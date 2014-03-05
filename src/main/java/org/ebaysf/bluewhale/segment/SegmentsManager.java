@@ -51,6 +51,8 @@ public class SegmentsManager {
         _spanAtLeast = Math.max(1, spanAtLeast);
         _belongsTo = belongsTo;
         _availableBuffers = new ConcurrentLinkedQueue<ByteBuffer>();
+
+        LOG.info(String.format("[segment manager] spanAtLeast:%d\n", _spanAtLeast));
     }
 
     public ByteBuffer allocateBuffer() throws IOException {
