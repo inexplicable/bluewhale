@@ -180,8 +180,9 @@ public class BinStorageImpl implements BinStorage {
 
         Collections.sort(orderedByLastModified, new Comparator<BinJournal>() {
             public @Override int compare(final BinJournal journalOne, final BinJournal journalTwo) {
-
-                return (int)(journalOne.usage().getLastModified() - journalTwo.usage().getLastModified());
+                final long lastModifiedOfJournalOne = journalOne.usage().getLastModified();
+                final long lastModifiedOfJournalTwo = journalTwo.usage().getLastModified();
+                return lastModifiedOfJournalOne == lastModifiedOfJournalTwo ? 0 : (lastModifiedOfJournalOne > lastModifiedOfJournalTwo ? 1 : -1);
             }
         });
 
