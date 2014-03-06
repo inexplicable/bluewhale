@@ -24,8 +24,8 @@ public interface BinDocumentFactory {
 
         long SHIFTS_OF_STATE = Long.SIZE - Byte.SIZE;
         long SHIFTS_OF_KEY_LENGTH = Integer.SIZE;
-        long MASK_OF_KEY_LENGTH = -1L >>> (Byte.SIZE + Long.SIZE);
-        long MASK_OF_VAL_LENGTH = -1L >>> (Long.SIZE + 1L);
+        long MASK_OF_KEY_LENGTH = -1L >>> (Byte.SIZE + Integer.SIZE);
+        long MASK_OF_VAL_LENGTH = -1L >>> (Integer.SIZE + 1L);
 
         int OFFSET_OF_NEXT = BYTES_OF_LONG;//state & lengths
         int OFFSET_OF_HASHCODE = OFFSET_OF_NEXT

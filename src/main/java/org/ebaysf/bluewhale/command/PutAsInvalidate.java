@@ -33,7 +33,7 @@ public class PutAsInvalidate extends PutAsIs {
                                      final long next) {
         return new BinDocumentRaw()
                 .setKey(getKeyAsByteBuffer(keySerializer))
-                .setValue(ZERO_BYTE_BUFFER)
+                .setValue(ZERO_BYTE_BUFFER.duplicate())
                 .setHashCode(getHashCode())
                 .setNext(next)//normal token would be -1, positive tokens used only by optimizations
                 .setLastModified(getLastModified())
