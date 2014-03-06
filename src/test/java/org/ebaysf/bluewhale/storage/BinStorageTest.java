@@ -44,6 +44,7 @@ public class BinStorageTest {
                 1 << 20,//1MB JOURNAL LENGTH
                 8,  //8MB TOTAL JOURNAL BYTES
                 2,
+                false,
                 Collections.<BinJournal>emptyList(),
                 _eventBus,
                 _executor,
@@ -71,6 +72,7 @@ public class BinStorageTest {
                 1 << 20,//1MB JOURNAL LENGTH
                 8,  //8MB TOTAL JOURNAL BYTES
                 2,
+                false,
                 Collections.<BinJournal>emptyList(),
                 _eventBus,
                 _executor,
@@ -98,6 +100,7 @@ public class BinStorageTest {
                 1 << 20,//1MB JOURNAL LENGTH
                 8,  //8MB TOTAL JOURNAL BYTES
                 2,
+                false,
                 Collections.<BinJournal>emptyList(),
                 _eventBus,
                 _executor,

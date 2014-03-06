@@ -86,6 +86,7 @@ public class DbBenchmark
                     1 << 29,//512MB JOURNAL LENGTH
                     8,  //8MB TOTAL JOURNAL BYTES
                     2,
+                    false,
                     Collections.<BinJournal>emptyList());
         }
         catch (IOException ex) {

@@ -27,20 +27,31 @@ public class Files {
     	return cacheDir;
     }
 
-    public static File newSegmentFile(final File dir) throws IOException {
+    public static File newSegmentFile(final File dir, final boolean deleteOnExit) throws IOException {
         final File segmentFile = new File(dir,
                 new StringBuilder().append(System.currentTimeMillis()).append('-').append(_random.nextInt()).append(".segment").toString());
+
         Preconditions.checkState(!segmentFile.exists());
         segmentFile.createNewFile();
+
+        if(deleteOnExit){
+            segmentFile.deleteOnExit();
+        }
+
         return segmentFile;
     }
 
-    public static File newJournalFile(final File dir) throws IOException {
+    public static File newJournalFile(final File dir, final boolean deleteOnExit) throws IOException {
         final File journalFile = new File(dir,
                 new StringBuilder().append(System.currentTimeMillis()).append('-').append(_random.nextInt()).append(".journal").toString());
 
         Preconditions.checkState(!journalFile.exists());
         journalFile.createNewFile();
+
+        if(deleteOnExit){
+            journalFile.deleteOnExit();
+        }
+
         return journalFile;
     }
 

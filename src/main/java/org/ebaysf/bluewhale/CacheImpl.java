@@ -76,6 +76,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
                      final int journalLength,
                      final int maxJournals,
                      final int maxMemoryMappedJournals,
+                     final boolean cleanUpOnExit,
                      final List<BinJournal> loadings) throws IOException {
 
         _local = Preconditions.checkNotNull(local);
@@ -87,9 +88,9 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         _executor = Preconditions.checkNotNull(executor);
         _removalListener = Preconditions.checkNotNull(removalListener);
 
-        _manager = new SegmentsManager(local, Segment.MAX_SEGMENTS >> (concurrencyLevel + maxSegmentDepth), this);
+        _manager = new SegmentsManager(local, Segment.MAX_SEGMENTS >> (concurrencyLevel + maxSegmentDepth), cleanUpOnExit, this);
         _storage = new BinStorageImpl(local, factory, journalLength, maxJournals,
-                maxMemoryMappedJournals, loadings, eventBus, executor, this);
+                maxMemoryMappedJournals, cleanUpOnExit, loadings, eventBus, executor, this);
 
         _eventBus.register(this);
 

@@ -27,6 +27,7 @@ public class SegmentsManager {
 
     private final File _local;
     private final int _spanAtLeast;
+    private final boolean _cleanUpOnExit;
     private final Cache<?, ?> _belongsTo;
     private final Queue<ByteBuffer> _availableBuffers;
 
@@ -45,10 +46,12 @@ public class SegmentsManager {
 
     public SegmentsManager(final File local,
                            final int spanAtLeast,
+                           final boolean cleanUpOnExit,
                            final Cache<?, ?> belongsTo){
 
         _local = local;
         _spanAtLeast = Math.max(1, spanAtLeast);
+        _cleanUpOnExit = cleanUpOnExit;
         _belongsTo = belongsTo;
         _availableBuffers = new ConcurrentLinkedQueue<ByteBuffer>();
 
@@ -69,7 +72,7 @@ public class SegmentsManager {
 
 	protected ByteBuffer newBuffer() throws IOException {
 
-        final File bufferFile = Files.newSegmentFile(_local);
+        final File bufferFile = Files.newSegmentFile(_local, _cleanUpOnExit);
         final ByteBuffer buffer = com.google.common.io.Files.map(bufferFile, FileChannel.MapMode.READ_WRITE, Segment.SIZE);
 		resetTokens(buffer.asLongBuffer());
 		return buffer;

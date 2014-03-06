@@ -11,14 +11,13 @@ import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.document.BinDocumentFactory;
 import org.ebaysf.bluewhale.event.PostExpansionEvent;
 import org.ebaysf.bluewhale.event.PostInvestigationEvent;
-import org.ebaysf.bluewhale.util.Files;
+import org.javatuples.Pair;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.nio.channels.FileChannel;
+import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.ReentrantLock;
@@ -43,6 +42,7 @@ public class BinStorageImpl implements BinStorage {
     private final int _journalLength;
     private final int _maxJournals;
     private final int _maxMemoryMappedJournals;
+    private final boolean _cleanUpOnExit;
     private final EventBus _eventBus;
     private final ExecutorService _executor;
     private final UsageTrack _usageTrack;
@@ -53,13 +53,14 @@ public class BinStorageImpl implements BinStorage {
 
     protected volatile BinJournal _journaling;
     protected volatile RangeMap<Integer, BinJournal> _navigableJournals;
-    protected volatile Future<ListMultimap<InspectionReport, BinJournal>> _openInvestigation;
+    protected volatile Future<?> _openInvestigation;
 
     public BinStorageImpl(final File local,
                           final BinDocumentFactory factory,
                           final int journalLength,
                           final int maxJournals,
                           final int maxMemoryMappedJournals,
+                          final boolean cleanUpOnExit,
                           final List<BinJournal> loadings,
                           final EventBus eventBus,
                           final ExecutorService executor,
@@ -75,12 +76,13 @@ public class BinStorageImpl implements BinStorage {
         Preconditions.checkArgument(maxJournals > 1);
         Preconditions.checkArgument(maxMemoryMappedJournals > 1 && maxMemoryMappedJournals < maxJournals);
 
-        _manager = new JournalsManager(_local, _eventBus, _executor);
         _journalLength = journalLength;
         _maxJournals = maxJournals;
         _maxMemoryMappedJournals = maxMemoryMappedJournals;
+        _cleanUpOnExit = cleanUpOnExit;
         _navigableJournals = ImmutableRangeMap.of();
 
+        _manager = new JournalsManager(_local, _journalLength, _cleanUpOnExit, _eventBus, _executor);
         _eventBus.register(this);
 
         _lock = new ReentrantLock(true);
@@ -110,7 +112,6 @@ public class BinStorageImpl implements BinStorage {
                 return append(binDocument);
             }
             finally{
-
                 _eventBus.post(new PostExpansionEvent(this, previous));
                 _lock.unlock();
             }
@@ -125,19 +126,12 @@ public class BinStorageImpl implements BinStorage {
 
     public @Override BinDocument read(final long token) throws IOException {
 
-        if(token < 0) {
-            return null;
-        }
+        if(token < 0) return null;
 
         final BinJournal zone = route(token);
-
-        if(zone == null){
-            return null;
-        }
-
         final int offset = (int)(token & MASK_OFFSET);
 
-        return zone.read(offset);
+        return Objects.firstNonNull(zone, EvictedBinJournal.INSTANCE).read(offset);
     }
 
     public @Override BinJournal route(final long token) {
@@ -208,9 +202,9 @@ public class BinStorageImpl implements BinStorage {
 
         final Range<Integer> range = Range.singleton(journalCode);
 
-        final File next = Files.newJournalFile(dir);
+        final Pair<File, ByteBuffer> next = _manager.newBuffer();
 
-        return new WriterBinJournal(next, range, _manager, new JournalUsageImpl(System.nanoTime(), 0), _factory, _journalLength, com.google.common.io.Files.map(next, FileChannel.MapMode.READ_WRITE, _journalLength));
+        return new WriterBinJournal(next.getValue0(), range, _manager, new JournalUsageImpl(System.nanoTime(), 0), _factory, _journalLength, next.getValue1());
     }
 
     protected void acceptWritable(final WriterBinJournal writable) {
@@ -229,16 +223,6 @@ public class BinStorageImpl implements BinStorage {
         _journaling = writable;
 
         LOG.info(String.format("[storage] new writable created, navigableJournals updated:%s", _navigableJournals));
-    }
-
-    protected EventBus getEventBus() {
-
-        return _eventBus;
-    }
-
-    protected ExecutorService getExecutor() {
-
-        return _executor;
     }
 
     protected BinJournal downgrade(final BinJournal journal) throws FileNotFoundException {
@@ -318,7 +302,7 @@ public class BinStorageImpl implements BinStorage {
                 builder.put(entry.getKey(), downgrade(entry.getValue()));
             }
             catch (FileNotFoundException e) {
-                e.printStackTrace();
+                LOG.warning(Throwables.getStackTraceAsString(e));
             }
         }
 
@@ -333,8 +317,9 @@ public class BinStorageImpl implements BinStorage {
 
         if(_openInvestigation == null){
             //there're cannot be 2 open investigations at the same time, too much cost
-            _openInvestigation = _executor.submit(new Callable<ListMultimap<InspectionReport,BinJournal>>() {
-                public @Override ListMultimap<InspectionReport, BinJournal> call() throws Exception {
+            _openInvestigation = _executor.submit(new Runnable() {
+
+                public @Override void run() {
 
                     final ListMultimap<InspectionReport, BinJournal> investigation = Multimaps.newListMultimap(
                             Maps.<InspectionReport, Collection<BinJournal>>newHashMap(),
@@ -387,8 +372,6 @@ public class BinStorageImpl implements BinStorage {
                     LOG.info(String.format("[storage] investigation completed:%s", investigation));
 
                     _eventBus.post(new PostInvestigationEvent(investigation));
-
-                    return investigation;
                 }
             });
         }

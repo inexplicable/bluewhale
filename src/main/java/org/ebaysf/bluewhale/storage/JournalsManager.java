@@ -6,9 +6,12 @@ import com.google.common.cache.RemovalNotification;
 import com.google.common.eventbus.EventBus;
 import org.ebaysf.bluewhale.util.Files;
 import org.ebaysf.bluewhale.util.Maps;
+import org.javatuples.Pair;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.logging.Logger;
@@ -21,6 +24,9 @@ public class JournalsManager {
 	private static final Logger LOG = Logger.getLogger(JournalsManager.class.getName());
 
     private final File _local;
+    private final int _journalLength;
+    private final boolean _cleanUpOnExit;
+
     protected final EventBus _eventBus;
     protected final ExecutorService _executor;
 
@@ -41,12 +47,24 @@ public class JournalsManager {
             Maps.INSTANCE.newIdentityWeakValuesCache(_journalsNoLongUsedListener);
 
     public JournalsManager(final File local,
+                           final int journalLength,
+                           final boolean cleanUpOnExit,
                            final EventBus eventBus,
                            final ExecutorService executor){
 
         _local = local;
+        _journalLength = journalLength;
+        _cleanUpOnExit = cleanUpOnExit;
+
         _eventBus = eventBus;
         _executor = executor;
+    }
+
+    public Pair<File, ByteBuffer> newBuffer() throws IOException {
+
+        final File next = Files.newJournalFile(_local, _cleanUpOnExit);
+
+        return new Pair<File, ByteBuffer>(next, com.google.common.io.Files.map(next, FileChannel.MapMode.READ_WRITE, _journalLength));
     }
 
     public void freeUpBuffer(final ByteBuffer buffer){

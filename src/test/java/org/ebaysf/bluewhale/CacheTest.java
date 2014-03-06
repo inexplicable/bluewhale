@@ -57,6 +57,7 @@ public class CacheTest {
                 1 << 20,//1MB JOURNAL LENGTH
                 8,  //8MB TOTAL JOURNAL BYTES
                 2,
+                true,
                 Collections.<BinJournal>emptyList());
 
         Assert.assertNotNull(cache);
@@ -94,6 +95,7 @@ public class CacheTest {
                 1 << 20,//1MB JOURNAL LENGTH
                 8,  //8MB TOTAL JOURNAL BYTES
                 2,
+                true,
                 Collections.<BinJournal>emptyList());
 
         Assert.assertNotNull(cache);
@@ -139,6 +141,7 @@ public class CacheTest {
                 1 << 20,//1MB JOURNAL LENGTH
                 8,  //8MB TOTAL JOURNAL BYTES
                 2,
+                true,
                 Collections.<BinJournal>emptyList());
 
         final String[] candidates = new String[1000];
@@ -200,6 +203,7 @@ public class CacheTest {
                 1 << 20,//1MB JOURNAL LENGTH
                 8,  //8MB TOTAL JOURNAL BYTES
                 2,
+                true,
                 Collections.<BinJournal>emptyList());
 
         final String[] candidates = new String[10000];
