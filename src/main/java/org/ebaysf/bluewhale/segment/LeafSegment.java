@@ -295,7 +295,7 @@ public class LeafSegment extends AbstractSegment {
 
         Preconditions.checkArgument(lowerBound != upperBound, "cannot further split!");
 
-        final int splitAt = (int)(((long)lowerBound +(long)upperBound) >> 1L);
+        final int splitAt = lowerBound + ((upperBound - lowerBound) >> 1);//(int)(((long)lowerBound +(long)upperBound) >> 1L);
         final BinStorage bin = getStorage();
 
         final LeafSegment lower = newLeafSegment(_manager.allocateBuffer(), Range.closed(lowerBound, splitAt));
