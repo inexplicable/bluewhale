@@ -1,10 +1,15 @@
 package org.ebaysf.bluewhale.segment;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.cache.RemovalCause;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
-import org.ebaysf.bluewhale.Cache;
+import com.google.common.collect.ImmutableRangeMap;
+import com.google.common.collect.Range;
+import com.google.common.collect.RangeMap;
+import org.ebaysf.bluewhale.configurable.Configuration;
+import org.ebaysf.bluewhale.storage.BinStorage;
 import org.ebaysf.bluewhale.util.Files;
 import org.ebaysf.bluewhale.util.Maps;
 
@@ -25,10 +30,8 @@ public class SegmentsManager {
 
 	private static final Logger LOG = Logger.getLogger(SegmentsManager.class.getName());
 
-    private final File _local;
+    private final Configuration _configuration;
     private final int _spanAtLeast;
-    private final boolean _cleanUpOnExit;
-    private final Cache<?, ?> _belongsTo;
     private final Queue<ByteBuffer> _availableBuffers;
 
     private final RemovalListener<ByteBuffer, Segment> _segmentsNoLongerUsedListener = new RemovalListener<ByteBuffer, Segment>() {
@@ -44,15 +47,10 @@ public class SegmentsManager {
 	private final com.google.common.cache.Cache<ByteBuffer, Segment> _buffersUsedBySegments =
             Maps.INSTANCE.newIdentityWeakValuesCache(_segmentsNoLongerUsedListener);
 
-    public SegmentsManager(final File local,
-                           final int spanAtLeast,
-                           final boolean cleanUpOnExit,
-                           final Cache<?, ?> belongsTo){
+    public SegmentsManager(final Configuration configuration){
 
-        _local = local;
-        _spanAtLeast = Math.max(1, spanAtLeast);
-        _cleanUpOnExit = cleanUpOnExit;
-        _belongsTo = belongsTo;
+        _configuration = Preconditions.checkNotNull(configuration);
+        _spanAtLeast = Math.max(1, Segment.MAX_SEGMENTS >> (configuration.getConcurrencyLevel() + configuration.getMaxSegmentDepth()));
         _availableBuffers = new ConcurrentLinkedQueue<ByteBuffer>();
 
         LOG.info(String.format("[segment manager] spanAtLeast:%d\n", _spanAtLeast));
@@ -62,7 +60,7 @@ public class SegmentsManager {
 
         final ByteBuffer buffer = _availableBuffers.poll();
         if(buffer == null){
-            _belongsTo.getExecutor().submit(_allocateBufferAheadTask);
+            _configuration.getExecutor().submit(_allocateBufferAheadTask);
             return newBuffer();
         }
         else {
@@ -72,7 +70,7 @@ public class SegmentsManager {
 
 	protected ByteBuffer newBuffer() throws IOException {
 
-        final File bufferFile = Files.newSegmentFile(_local, _cleanUpOnExit);
+        final File bufferFile = Files.newSegmentFile(_configuration.getLocal(), _configuration.isCleanUpOnExit());
         final ByteBuffer buffer = com.google.common.io.Files.map(bufferFile, FileChannel.MapMode.READ_WRITE, Segment.SIZE);
 		resetTokens(buffer.asLongBuffer());
 		return buffer;
@@ -84,7 +82,21 @@ public class SegmentsManager {
 
     public void freeUpBuffer(final ByteBuffer buffer){
 
-        _belongsTo.getExecutor().submit(new FreeUpBufferTask(buffer));
+        _configuration.getExecutor().submit(new FreeUpBufferTask(buffer));
+    }
+
+    public RangeMap<Integer, Segment> initSegments(final BinStorage storage) throws IOException {
+
+        final int span = Segment.MAX_SEGMENTS >> _configuration.getConcurrencyLevel();
+        final ImmutableRangeMap.Builder<Integer, Segment> builder = ImmutableRangeMap.builder();
+
+        for(int lowerBound = 0, upperBound = lowerBound + span - 1; lowerBound < Segment.MAX_SEGMENTS; lowerBound += span, upperBound += span){
+            final Range<Integer> range = Range.closed(lowerBound, upperBound);
+            builder.put(range,
+                    new LeafSegment(range, _configuration, this, storage, this.allocateBuffer()));
+        }
+
+        return builder.build();
     }
 
     /**

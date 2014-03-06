@@ -7,6 +7,7 @@ import com.google.common.collect.Lists;
 import com.google.common.eventbus.AsyncEventBus;
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.Files;
+import org.ebaysf.bluewhale.configurable.ConfigurationBuilder;
 import org.ebaysf.bluewhale.document.BinDocumentFactories;
 import org.ebaysf.bluewhale.serialization.Serializers;
 import org.ebaysf.bluewhale.storage.BinJournal;
@@ -40,24 +41,24 @@ public class CacheTest {
         final File temp = Files.createTempDir();
         final EventBus eventBus = new EventBus();
 
-        final Cache<String, String> cache = new CacheImpl<String, String>(temp,
-                2,
-                2,
-                Serializers.STRING_SERIALIZER,
-                Serializers.STRING_SERIALIZER,
-                eventBus,
-                _executor,
+        final Cache<String, String> cache = new CacheImpl<String, String>(
+                ConfigurationBuilder.builder(temp, Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
+                        .setEventBus(eventBus)
+                        .setExecutor(_executor)
+                        .setConcurrencyLevel(2)
+                        .setMaxSegmentDepth(2)
+                        .setBinDocumentFactory(BinDocumentFactories.RAW)
+                        .setJournalLength(1 << 20)
+                        .setMaxJournals(8)
+                        .setMaxMemoryMappedJournals(2)
+                        .setCleanUpOnExit(true)
+                        .build(),
                 new RemovalListener<String, String>() {
                     @Override
                     public void onRemoval(RemovalNotification<String, String> notification) {
 
                     }
                 },
-                BinDocumentFactories.RAW,
-                1 << 20,//1MB JOURNAL LENGTH
-                8,  //8MB TOTAL JOURNAL BYTES
-                2,
-                true,
                 Collections.<BinJournal>emptyList());
 
         Assert.assertNotNull(cache);
@@ -77,13 +78,18 @@ public class CacheTest {
         final File temp = Files.createTempDir();
         final EventBus eventBus = new EventBus();
 
-        final Cache<String, String> cache = new CacheImpl<String, String>(temp,
-                2,
-                2,
-                Serializers.STRING_SERIALIZER,
-                Serializers.STRING_SERIALIZER,
-                eventBus,
-                _executor,
+        final Cache<String, String> cache = new CacheImpl<String, String>(
+                ConfigurationBuilder.builder(temp, Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
+                        .setEventBus(eventBus)
+                        .setExecutor(_executor)
+                        .setConcurrencyLevel(2)
+                        .setMaxSegmentDepth(2)
+                        .setBinDocumentFactory(BinDocumentFactories.RAW)
+                        .setJournalLength(1 << 20)
+                        .setMaxJournals(8)
+                        .setMaxMemoryMappedJournals(2)
+                        .setCleanUpOnExit(true)
+                        .build(),
                 new RemovalListener<String, String>() {
                     @Override
                     public void onRemoval(RemovalNotification<String, String> notification) {
@@ -91,11 +97,6 @@ public class CacheTest {
                         System.out.println(notification);
                     }
                 },
-                BinDocumentFactories.RAW,
-                1 << 20,//1MB JOURNAL LENGTH
-                8,  //8MB TOTAL JOURNAL BYTES
-                2,
-                true,
                 Collections.<BinJournal>emptyList());
 
         Assert.assertNotNull(cache);
@@ -124,24 +125,24 @@ public class CacheTest {
         final File temp = Files.createTempDir();
         final EventBus eventBus = new AsyncEventBus(_executor);
 
-        final Cache<String, String> cache = new CacheImpl<String, String>(temp,
-                2,
-                2,
-                Serializers.STRING_SERIALIZER,
-                Serializers.STRING_SERIALIZER,
-                eventBus,
-                _executor,
+        final Cache<String, String> cache = new CacheImpl<String, String>(
+                ConfigurationBuilder.builder(temp, Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
+                        .setEventBus(eventBus)
+                        .setExecutor(_executor)
+                        .setConcurrencyLevel(2)
+                        .setMaxSegmentDepth(2)
+                        .setBinDocumentFactory(BinDocumentFactories.RAW)
+                        .setJournalLength(1 << 20)
+                        .setMaxJournals(8)
+                        .setMaxMemoryMappedJournals(2)
+                        .setCleanUpOnExit(true)
+                        .build(),
                 new RemovalListener<String, String>() {
                     @Override
                     public void onRemoval(RemovalNotification<String, String> notification) {
 
                     }
                 },
-                BinDocumentFactories.RAW,
-                1 << 20,//1MB JOURNAL LENGTH
-                8,  //8MB TOTAL JOURNAL BYTES
-                2,
-                true,
                 Collections.<BinJournal>emptyList());
 
         final String[] candidates = new String[1000];
@@ -186,24 +187,24 @@ public class CacheTest {
         final AtomicLong durations = new AtomicLong(0L);
         final ExecutorService concurrency = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() / 2 + 1);
 
-        final Cache<String, String> cache = new CacheImpl<String, String>(temp,
-                2,
-                2,
-                Serializers.STRING_SERIALIZER,
-                Serializers.STRING_SERIALIZER,
-                eventBus,
-                _executor,
+        final Cache<String, String> cache = new CacheImpl<String, String>(
+                ConfigurationBuilder.builder(temp, Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
+                        .setEventBus(eventBus)
+                        .setExecutor(_executor)
+                        .setConcurrencyLevel(2)
+                        .setMaxSegmentDepth(2)
+                        .setBinDocumentFactory(BinDocumentFactories.RAW)
+                        .setJournalLength(1 << 20)
+                        .setMaxJournals(8)
+                        .setMaxMemoryMappedJournals(2)
+                        .setCleanUpOnExit(true)
+                        .build(),
                 new RemovalListener<String, String>() {
                     @Override
                     public void onRemoval(RemovalNotification<String, String> notification) {
 
                     }
                 },
-                BinDocumentFactories.RAW,
-                1 << 20,//1MB JOURNAL LENGTH
-                8,  //8MB TOTAL JOURNAL BYTES
-                2,
-                true,
                 Collections.<BinJournal>emptyList());
 
         final String[] candidates = new String[10000];

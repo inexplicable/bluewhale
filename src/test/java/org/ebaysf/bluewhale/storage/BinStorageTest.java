@@ -5,9 +5,11 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import org.ebaysf.bluewhale.configurable.ConfigurationBuilder;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.document.BinDocumentFactories;
 import org.ebaysf.bluewhale.document.BinDocumentRaw;
+import org.ebaysf.bluewhale.serialization.Serializers;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
@@ -39,15 +41,17 @@ public class BinStorageTest {
 
         final File temp = Files.createTempDir();
 
-        final BinStorage storage = new BinStorageImpl(temp,
-                BinDocumentFactories.RAW,
-                1 << 20,//1MB JOURNAL LENGTH
-                8,  //8MB TOTAL JOURNAL BYTES
-                2,
-                false,
+        final BinStorage storage = new BinStorageImpl(
+                ConfigurationBuilder.builder(temp, Serializers.BYTE_ARRAY_SERIALIZER, Serializers.BYTE_ARRAY_SERIALIZER)
+                    .setEventBus(_eventBus)
+                    .setExecutor(_executor)
+                    .setBinDocumentFactory(BinDocumentFactories.RAW)
+                    .setJournalLength(1 << 20)
+                    .setMaxJournals(8)
+                    .setMaxMemoryMappedJournals(2)
+                    .setCleanUpOnExit(true)
+                    .build(),
                 Collections.<BinJournal>emptyList(),
-                _eventBus,
-                _executor,
                 Mockito.mock(UsageTrack.class));
 
         Assert.assertNotNull(storage);
@@ -67,15 +71,17 @@ public class BinStorageTest {
 
         final File temp = Files.createTempDir();
 
-        final BinStorage storage = new BinStorageImpl(temp,
-                BinDocumentFactories.RAW,
-                1 << 20,//1MB JOURNAL LENGTH
-                8,  //8MB TOTAL JOURNAL BYTES
-                2,
-                false,
+        final BinStorage storage = new BinStorageImpl(
+                ConfigurationBuilder.builder(temp, Serializers.BYTE_ARRAY_SERIALIZER, Serializers.BYTE_ARRAY_SERIALIZER)
+                        .setEventBus(_eventBus)
+                        .setExecutor(_executor)
+                        .setBinDocumentFactory(BinDocumentFactories.RAW)
+                        .setJournalLength(1 << 20)
+                        .setMaxJournals(8)
+                        .setMaxMemoryMappedJournals(2)
+                        .setCleanUpOnExit(true)
+                        .build(),
                 Collections.<BinJournal>emptyList(),
-                _eventBus,
-                _executor,
                 Mockito.mock(UsageTrack.class));
 
         final BinDocument small = new BinDocumentRaw()
@@ -95,18 +101,20 @@ public class BinStorageTest {
 
         final File temp = Files.createTempDir();
 
-        final BinStorageImpl storage = new BinStorageImpl(temp,
-                BinDocumentFactories.RAW,
-                1 << 20,//1MB JOURNAL LENGTH
-                8,  //8MB TOTAL JOURNAL BYTES
-                2,
-                false,
+        final BinStorageImpl storage = new BinStorageImpl(
+                ConfigurationBuilder.builder(temp, Serializers.BYTE_ARRAY_SERIALIZER, Serializers.BYTE_ARRAY_SERIALIZER)
+                        .setEventBus(_eventBus)
+                        .setExecutor(_executor)
+                        .setBinDocumentFactory(BinDocumentFactories.RAW)
+                        .setJournalLength(1 << 20)
+                        .setMaxJournals(8)
+                        .setMaxMemoryMappedJournals(2)
+                        .setCleanUpOnExit(true)
+                        .build(),
                 Collections.<BinJournal>emptyList(),
-                _eventBus,
-                _executor,
                 Mockito.mock(UsageTrack.class));
 
-        final BinJournal overflow = storage.nextWritable(temp);
+        final BinJournal overflow = storage.nextWritable();
 
         Assert.assertNotNull(overflow);
 

@@ -11,18 +11,16 @@ import com.google.common.collect.ImmutableRangeMap;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
 import com.google.common.eventbus.AllowConcurrentEvents;
-import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import org.ebaysf.bluewhale.command.GetImpl;
 import org.ebaysf.bluewhale.command.PutAsInvalidate;
 import org.ebaysf.bluewhale.command.PutAsIs;
+import org.ebaysf.bluewhale.configurable.Configuration;
 import org.ebaysf.bluewhale.document.BinDocument;
-import org.ebaysf.bluewhale.document.BinDocumentFactory;
 import org.ebaysf.bluewhale.event.PostInvalidateAllEvent;
 import org.ebaysf.bluewhale.event.PostSegmentSplitEvent;
 import org.ebaysf.bluewhale.event.RemovalNotificationEvent;
 import org.ebaysf.bluewhale.event.SegmentSplitEvent;
-import org.ebaysf.bluewhale.segment.LeafSegment;
 import org.ebaysf.bluewhale.segment.Segment;
 import org.ebaysf.bluewhale.segment.SegmentsManager;
 import org.ebaysf.bluewhale.serialization.Serializer;
@@ -40,7 +38,6 @@ import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.logging.Logger;
 
 /**
@@ -50,78 +47,38 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
 
     private static final Logger LOG = Logger.getLogger(CacheImpl.class.getName());
 
-    private final File _local;
-    private final int _concurrencyLevel;
-    private final int _maxSegmentDepth;
-    private final Serializer<K> _keySerializer;
-    private final Serializer<V> _valSerializer;
+    private final Configuration _configuration;
     private final SegmentsManager _manager;
     private final BinStorage _storage;
 
     private final RemovalListener<K, V> _removalListener;
-    private final EventBus _eventBus;
-    private final ExecutorService _executor;
 
     protected volatile RangeMap<Integer, Segment> _navigableSegments;
 
-    public CacheImpl(final File local,
-                     final int concurrencyLevel,
-                     final int maxSegmentDepth,
-                     final Serializer<K> keySerializer,
-                     final Serializer<V> valSerializer,
-                     final EventBus eventBus,
-                     final ExecutorService executor,
+    public CacheImpl(final Configuration configuration,
                      final RemovalListener<K, V> removalListener,
-                     final BinDocumentFactory factory,
-                     final int journalLength,
-                     final int maxJournals,
-                     final int maxMemoryMappedJournals,
-                     final boolean cleanUpOnExit,
                      final List<BinJournal> loadings) throws IOException {
 
-        _local = Preconditions.checkNotNull(local);
-        _concurrencyLevel = concurrencyLevel;Preconditions.checkArgument(concurrencyLevel > 0 && concurrencyLevel < 16);
-        _maxSegmentDepth = maxSegmentDepth;Preconditions.checkArgument(maxSegmentDepth > 0 && maxSegmentDepth < 16);
-        _keySerializer = Preconditions.checkNotNull(keySerializer);
-        _valSerializer = Preconditions.checkNotNull(valSerializer);
-        _eventBus = Preconditions.checkNotNull(eventBus);
-        _executor = Preconditions.checkNotNull(executor);
+        _configuration = Preconditions.checkNotNull(configuration);
         _removalListener = Preconditions.checkNotNull(removalListener);
 
-        _manager = new SegmentsManager(local, Segment.MAX_SEGMENTS >> (concurrencyLevel + maxSegmentDepth), cleanUpOnExit, this);
-        _storage = new BinStorageImpl(local, factory, journalLength, maxJournals,
-                maxMemoryMappedJournals, cleanUpOnExit, loadings, eventBus, executor, this);
+        _manager = new SegmentsManager(_configuration);
+        _storage = new BinStorageImpl(_configuration, loadings, this);
 
-        _eventBus.register(this);
+        _configuration.getEventBus().register(this);
 
-        _navigableSegments = initSegments(_local, concurrencyLevel);
-    }
-
-    public @Override EventBus getEventBus() {
-
-        return _eventBus;
-    }
-
-    public @Override ExecutorService getExecutor() {
-
-        return _executor;
+        _navigableSegments = _manager.initSegments(_storage);
     }
 
     public @Override Serializer<K> getKeySerializer() {
 
-        return _keySerializer;
+        return _configuration.getKeySerializer();
     }
 
     public @Override Serializer<V> getValSerializer() {
 
-        return _valSerializer;
+        return _configuration.getValSerializer();
     }
-
-    public @Override BinStorage getStorage() {
-
-        return _storage;
-    }
-
 
     public @Override V getIfPresent(Object key) {
 
@@ -144,7 +101,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
 
         Preconditions.checkArgument(key != null && valueLoader != null);
 
-        final int hashCode = getKeySerializer().hashCode((K)key);
+        final int hashCode = getKeySerializer().hashCode((K) key);
         final int segmentCode = getSegmentCode(hashCode);
         final Segment zone = route(segmentCode);
 
@@ -228,13 +185,13 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
 
         try {
             //the fastest way to invalidate everything is to wipe the segments clean.
-            _navigableSegments = initSegments(_local, _concurrencyLevel);
+            _navigableSegments = _manager.initSegments(_storage);
         }
         catch (IOException e) {
             LOG.warning(Throwables.getStackTraceAsString(e));
         }
 
-        getEventBus().post(new PostInvalidateAllEvent(abandons, this));
+        _configuration.getEventBus().post(new PostInvalidateAllEvent(abandons, this));
     }
 
     public @Override long size() {
@@ -293,20 +250,6 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         return _navigableSegments.get(segmentCode);
     }
 
-    protected RangeMap<Integer, Segment> initSegments(final File dir, final int concurrencyLevel) throws IOException {
-
-        final int span = Segment.MAX_SEGMENTS >> concurrencyLevel;
-        final ImmutableRangeMap.Builder<Integer, Segment> builder = ImmutableRangeMap.builder();
-
-        for(int lowerBound = 0, upperBound = lowerBound + span - 1; lowerBound < Segment.MAX_SEGMENTS; lowerBound += span, upperBound += span){
-            final Range<Integer> range = Range.closed(lowerBound, upperBound);
-            builder.put(range,
-                    new LeafSegment(range, this, _manager, _manager.allocateBuffer()));
-        }
-
-        return builder.build();
-    }
-
     @Subscribe
     public void onSegmentSplit(final SegmentSplitEvent event){
 
@@ -331,7 +274,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
 
         _navigableSegments = modifying.build();
 
-        getEventBus().post(new PostSegmentSplitEvent(before));
+        _configuration.getEventBus().post(new PostSegmentSplitEvent(before));
     }
 
     @Subscribe

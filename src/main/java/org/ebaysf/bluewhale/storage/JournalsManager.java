@@ -1,9 +1,11 @@
 package org.ebaysf.bluewhale.storage;
 
+import com.google.common.base.Preconditions;
 import com.google.common.cache.RemovalCause;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.eventbus.EventBus;
+import org.ebaysf.bluewhale.configurable.Configuration;
 import org.ebaysf.bluewhale.util.Files;
 import org.ebaysf.bluewhale.util.Maps;
 import org.javatuples.Pair;
@@ -23,12 +25,7 @@ public class JournalsManager {
 
 	private static final Logger LOG = Logger.getLogger(JournalsManager.class.getName());
 
-    private final File _local;
-    private final int _journalLength;
-    private final boolean _cleanUpOnExit;
-
-    protected final EventBus _eventBus;
-    protected final ExecutorService _executor;
+    private final Configuration _configuration;
 
     private final RemovalListener<ByteBuffer, BinJournal> _journalsNoLongUsedListener = new RemovalListener<ByteBuffer, BinJournal>() {
         public @Override void onRemoval(RemovalNotification<ByteBuffer, BinJournal> notification) {
@@ -46,30 +43,21 @@ public class JournalsManager {
 	private final com.google.common.cache.Cache<ByteBuffer, BinJournal> _buffersUsedByJournals =
             Maps.INSTANCE.newIdentityWeakValuesCache(_journalsNoLongUsedListener);
 
-    public JournalsManager(final File local,
-                           final int journalLength,
-                           final boolean cleanUpOnExit,
-                           final EventBus eventBus,
-                           final ExecutorService executor){
+    public JournalsManager(final Configuration configuration){
 
-        _local = local;
-        _journalLength = journalLength;
-        _cleanUpOnExit = cleanUpOnExit;
-
-        _eventBus = eventBus;
-        _executor = executor;
+        _configuration = Preconditions.checkNotNull(configuration);
     }
 
     public Pair<File, ByteBuffer> newBuffer() throws IOException {
 
-        final File next = Files.newJournalFile(_local, _cleanUpOnExit);
+        final File next = Files.newJournalFile(_configuration.getLocal(), _configuration.isCleanUpOnExit());
 
-        return new Pair<File, ByteBuffer>(next, com.google.common.io.Files.map(next, FileChannel.MapMode.READ_WRITE, _journalLength));
+        return new Pair<File, ByteBuffer>(next, com.google.common.io.Files.map(next, FileChannel.MapMode.READ_WRITE, _configuration.getJournalLength()));
     }
 
     public void freeUpBuffer(final ByteBuffer buffer){
 
-        _executor.submit(new FreeUpBufferTask(buffer));
+        _configuration.getExecutor().submit(new FreeUpBufferTask(buffer));
     }
 
     /**
@@ -83,6 +71,14 @@ public class JournalsManager {
     protected void rememberBufferUsedByJournal(final ByteBuffer buffer, final BinJournal journal){
 
         _buffersUsedByJournals.put(buffer, journal);
+    }
+
+    protected EventBus getEventBus(){
+        return _configuration.getEventBus();
+    }
+
+    protected ExecutorService getExecutor(){
+        return _configuration.getExecutor();
     }
 
     private class FreeUpBufferTask implements Runnable, RemovalListener<ByteBuffer, BinJournal> {

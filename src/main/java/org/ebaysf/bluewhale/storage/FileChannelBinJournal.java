@@ -49,8 +49,8 @@ public class FileChannelBinJournal extends AbstractBinJournal {
         _size = size;
 
         if(documentLength90 < 0){
-            _manager._eventBus.register(this);
-            _manager._executor.submit(new Runnable() {
+            _manager.getEventBus().register(this);
+            _manager.getExecutor().submit(new Runnable() {
                 @Override
                 public void run() {
 
@@ -82,7 +82,7 @@ public class FileChannelBinJournal extends AbstractBinJournal {
                             .append("[anticipated] ").append(self).append(" will use:")
                             .append(greaterThan90Percents).append(" Bytes for future reads").toString());
 
-                    _manager._eventBus.post(new DocumentLengthAnticipatedEvent(FileChannelBinJournal.this, greaterThan90Percents.intValue()));
+                    _manager.getEventBus().post(new DocumentLengthAnticipatedEvent(FileChannelBinJournal.this, greaterThan90Percents.intValue()));
                 }
             });
         }
@@ -120,7 +120,7 @@ public class FileChannelBinJournal extends AbstractBinJournal {
     @Subscribe
     public void onDocumentLengthAnticipated(final DocumentLengthAnticipatedEvent event){
         if(event.getSource() == this){
-            _manager._eventBus.unregister(this);
+            _manager.getEventBus().unregister(this);
             _documentLength90 = event.getDocumentLengthAnticipated();
         }
     }

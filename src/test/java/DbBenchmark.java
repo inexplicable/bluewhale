@@ -27,6 +27,7 @@ import com.google.common.io.CharStreams;
 import com.google.common.io.Files;
 import org.ebaysf.bluewhale.Cache;
 import org.ebaysf.bluewhale.CacheImpl;
+import org.ebaysf.bluewhale.configurable.ConfigurationBuilder;
 import org.ebaysf.bluewhale.document.BinDocumentFactories;
 import org.ebaysf.bluewhale.serialization.Serializers;
 import org.ebaysf.bluewhale.storage.BinJournal;
@@ -69,24 +70,24 @@ public class DbBenchmark
 
     static {
         try {
-            cache_ = new CacheImpl<byte[], byte[]>(_dir,
-                    4,
-                    8,
-                    Serializers.BYTE_ARRAY_SERIALIZER,
-                    Serializers.BYTE_ARRAY_SERIALIZER,
-                    _eventBus,
-                    _executor,
+            cache_ = new CacheImpl<byte[], byte[]>(
+                    ConfigurationBuilder.builder(_dir, Serializers.BYTE_ARRAY_SERIALIZER, Serializers.BYTE_ARRAY_SERIALIZER)
+                            .setEventBus(_eventBus)
+                            .setExecutor(_executor)
+                            .setConcurrencyLevel(4)
+                            .setMaxSegmentDepth(8)
+                            .setBinDocumentFactory(BinDocumentFactories.RAW)
+                            .setJournalLength(1 << 29)
+                            .setMaxJournals(8)
+                            .setMaxMemoryMappedJournals(2)
+                            .setCleanUpOnExit(true)
+                            .build(),
                     new RemovalListener<byte[], byte[]>() {
                         @Override
                         public void onRemoval(RemovalNotification<byte[], byte[]> notification) {
 
                         }
                     },
-                    BinDocumentFactories.RAW,
-                    1 << 29,//512MB JOURNAL LENGTH
-                    8,  //8MB TOTAL JOURNAL BYTES
-                    2,
-                    false,
                     Collections.<BinJournal>emptyList());
         }
         catch (IOException ex) {

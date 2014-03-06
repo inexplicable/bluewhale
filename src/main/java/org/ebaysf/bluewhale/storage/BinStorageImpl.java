@@ -7,6 +7,7 @@ import com.google.common.collect.*;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import org.brettw.SparseBitSet;
+import org.ebaysf.bluewhale.configurable.Configuration;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.document.BinDocumentFactory;
 import org.ebaysf.bluewhale.event.PostExpansionEvent;
@@ -38,11 +39,7 @@ public class BinStorageImpl implements BinStorage {
 
     private static final Logger LOG = Logger.getLogger(BinStorageImpl.class.getName());
 
-    private final File _local;
-    private final int _journalLength;
-    private final int _maxJournals;
-    private final int _maxMemoryMappedJournals;
-    private final boolean _cleanUpOnExit;
+    private final Configuration _configuration;
     private final EventBus _eventBus;
     private final ExecutorService _executor;
     private final UsageTrack _usageTrack;
@@ -55,45 +52,31 @@ public class BinStorageImpl implements BinStorage {
     protected volatile RangeMap<Integer, BinJournal> _navigableJournals;
     protected volatile Future<?> _openInvestigation;
 
-    public BinStorageImpl(final File local,
-                          final BinDocumentFactory factory,
-                          final int journalLength,
-                          final int maxJournals,
-                          final int maxMemoryMappedJournals,
-                          final boolean cleanUpOnExit,
+    public BinStorageImpl(final Configuration configuration,
                           final List<BinJournal> loadings,
-                          final EventBus eventBus,
-                          final ExecutorService executor,
                           final UsageTrack usageTrack) throws IOException {
 
-        _local = Objects.firstNonNull(local, com.google.common.io.Files.createTempDir());
-        _factory = Preconditions.checkNotNull(factory);
-        _eventBus = Preconditions.checkNotNull(eventBus);
-        _executor = Preconditions.checkNotNull(executor);
+        _configuration = Preconditions.checkNotNull(configuration);
+
+        _factory = _configuration.getBinDocumentFactory();
+        _eventBus = _configuration.getEventBus();
+        _executor = _configuration.getExecutor();
         _usageTrack = Preconditions.checkNotNull(usageTrack);
 
-        Preconditions.checkArgument(journalLength > 0);
-        Preconditions.checkArgument(maxJournals > 1);
-        Preconditions.checkArgument(maxMemoryMappedJournals > 1 && maxMemoryMappedJournals < maxJournals);
-
-        _journalLength = journalLength;
-        _maxJournals = maxJournals;
-        _maxMemoryMappedJournals = maxMemoryMappedJournals;
-        _cleanUpOnExit = cleanUpOnExit;
         _navigableJournals = ImmutableRangeMap.of();
 
-        _manager = new JournalsManager(_local, _journalLength, _cleanUpOnExit, _eventBus, _executor);
+        _manager = new JournalsManager(_configuration);
         _eventBus.register(this);
 
         _lock = new ReentrantLock(true);
 
         warmUp(loadings);
-        acceptWritable(nextWritable(_local));
+        acceptWritable(nextWritable());
     }
 
     public @Override File local() {
 
-        return _local;
+        return _configuration.getLocal();
     }
 
     public @Override long append(BinDocument binDocument) throws IOException {
@@ -108,7 +91,7 @@ public class BinStorageImpl implements BinStorage {
             try{
                 _lock.lock();
 
-                acceptWritable(nextWritable(_local));
+                acceptWritable(nextWritable());
                 return append(binDocument);
             }
             finally{
@@ -148,16 +131,16 @@ public class BinStorageImpl implements BinStorage {
 
     public @Override int getJournalLength() {
 
-        return _journalLength;
+        return _configuration.getJournalLength();
     }
 
     public @Override int getMaxJournals() {
 
-        return _maxJournals;
+        return _configuration.getMaxJournals();
     }
 
     public @Override int getMaxMemoryMappedJournals(){
-        return _maxMemoryMappedJournals;
+        return _configuration.getMaxMemoryMappedJournals();
     }
 
     public @Override int getEvictedJournals() {
@@ -196,7 +179,7 @@ public class BinStorageImpl implements BinStorage {
         return builder.build();
     }
 
-    protected WriterBinJournal nextWritable(final File dir) throws IOException {
+    protected WriterBinJournal nextWritable() throws IOException {
 
         final int journalCode = _navigableJournals.asMapOfRanges().isEmpty() ? 0 : (_navigableJournals.span().upperEndpoint().intValue() + 1) % Integer.MAX_VALUE;
 
@@ -204,7 +187,7 @@ public class BinStorageImpl implements BinStorage {
 
         final Pair<File, ByteBuffer> next = _manager.newBuffer();
 
-        return new WriterBinJournal(next.getValue0(), range, _manager, new JournalUsageImpl(System.nanoTime(), 0), _factory, _journalLength, next.getValue1());
+        return new WriterBinJournal(next.getValue0(), range, _manager, new JournalUsageImpl(System.nanoTime(), 0), _factory, _configuration.getJournalLength(), next.getValue1());
     }
 
     protected void acceptWritable(final WriterBinJournal writable) {
@@ -293,7 +276,7 @@ public class BinStorageImpl implements BinStorage {
         }
 
         //check for downgrades
-        int downgrades = memoryMappedJournals.size() - _maxMemoryMappedJournals + 1;
+        int downgrades = memoryMappedJournals.size() - getMaxMemoryMappedJournals() + 1;
         LOG.info(String.format("[storage] downgrades:%d memoryMappedJournals", downgrades));
         for(Iterator<Map.Entry<Range<Integer>, BinJournal>> it = memoryMappedJournals.entrySet().iterator(); it.hasNext() && downgrades > 0; downgrades -= 1){
 

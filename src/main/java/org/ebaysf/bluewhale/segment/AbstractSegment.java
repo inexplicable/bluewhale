@@ -1,10 +1,11 @@
 package org.ebaysf.bluewhale.segment;
 
+import com.google.common.base.Preconditions;
 import com.google.common.cache.RemovalCause;
 import com.google.common.collect.Range;
-import org.ebaysf.bluewhale.Cache;
 import org.ebaysf.bluewhale.command.Get;
 import org.ebaysf.bluewhale.command.Put;
+import org.ebaysf.bluewhale.configurable.Configuration;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.serialization.Serializer;
 import org.ebaysf.bluewhale.storage.BinStorage;
@@ -23,8 +24,9 @@ public abstract class AbstractSegment implements Segment {
 
     private final Range<Integer> _range;
 
-    protected final Cache<?, ?> _belongsTo;
+    protected final Configuration _configuration;
     protected final SegmentsManager _manager;
+    protected final BinStorage _storage;
     protected final ReentrantLock _lock;
 
     protected volatile int _size;
@@ -32,12 +34,14 @@ public abstract class AbstractSegment implements Segment {
     protected volatile Segment _upper;
 
     public AbstractSegment(final Range<Integer> range,
-                           final Cache<?, ?> belongsTo,
-                           final SegmentsManager manager){
+                           final Configuration configuration,
+                           final SegmentsManager manager,
+                           final BinStorage storage){
 
-        _range = range;
-        _belongsTo = belongsTo;
-        _manager = manager;
+        _range = Preconditions.checkNotNull(range);
+        _configuration = Preconditions.checkNotNull(configuration);
+        _manager = Preconditions.checkNotNull(manager);
+        _storage = Preconditions.checkNotNull(storage);
 
         _lock = new ReentrantLock(true);
     }
@@ -47,23 +51,23 @@ public abstract class AbstractSegment implements Segment {
         return _range;
     }
 
-    public @Override <K, V> Cache<K, V> belongsTo() {
-        return (Cache)_belongsTo;
+    public @Override Configuration configuration() {
+        return _configuration;
     }
 
     public @Override <K> Serializer<K> getKeySerializer() {
 
-        return (Serializer)_belongsTo.getKeySerializer();
+        return (Serializer<K>)_configuration.getKeySerializer();
     }
 
     public @Override <V> Serializer<V> getValSerializer() {
 
-        return (Serializer)_belongsTo.getValSerializer();
+        return (Serializer<V>)_configuration.getValSerializer();
     }
 
     public @Override BinStorage getStorage() {
 
-        return _belongsTo.getStorage();
+        return _storage;
     }
 
     public @Override List<Segment> getChildren() {

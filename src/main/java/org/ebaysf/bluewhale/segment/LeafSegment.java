@@ -10,11 +10,11 @@ import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.eventbus.AllowConcurrentEvents;
 import com.google.common.eventbus.Subscribe;
-import org.ebaysf.bluewhale.Cache;
 import org.ebaysf.bluewhale.command.Get;
 import org.ebaysf.bluewhale.command.Put;
 import org.ebaysf.bluewhale.command.PutAsIs;
 import org.ebaysf.bluewhale.command.PutAsRefresh;
+import org.ebaysf.bluewhale.configurable.Configuration;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.event.*;
 import org.ebaysf.bluewhale.serialization.Serializer;
@@ -40,16 +40,17 @@ public class LeafSegment extends AbstractSegment {
     private final LongBuffer _tokens;
 
     public LeafSegment(final Range<Integer> range,
-                       final Cache<?, ?> belongsTo,
+                       final Configuration configuration,
                        final SegmentsManager manager,
+                       final BinStorage storage,
                        final ByteBuffer mmap) {
 
-        super(range, belongsTo, manager);
+        super(range, configuration, manager, storage);
 
         _mmap = mmap;
         _tokens = _mmap.asLongBuffer();
 
-        _belongsTo.getEventBus().register(this);
+        configuration().getEventBus().register(this);
         _manager.rememberBufferUsedBySegment(_mmap, this);
     }
 
@@ -68,7 +69,7 @@ public class LeafSegment extends AbstractSegment {
             }
 
             final long beforeLoad = System.nanoTime();
-            final Future<V> value = belongsTo().getExecutor().submit(get.<V>getValueLoader());
+            final Future<V> value = configuration().getExecutor().submit(get.<V>getValueLoader());
             try{
 
                 final V resolved = value.get();
@@ -147,7 +148,7 @@ public class LeafSegment extends AbstractSegment {
 
         if(isLeaf()){
 
-            _belongsTo.getEventBus().post(new RemovalNotificationEvent(obsolete, cause));
+            configuration().getEventBus().post(new RemovalNotificationEvent(obsolete, cause));
         }
         else{
             super.forget(obsolete, cause);
@@ -204,7 +205,7 @@ public class LeafSegment extends AbstractSegment {
         }
         finally {
             if(length >= SHORTEN_PATH_THRESHOLD){
-                _belongsTo.getEventBus().post(new PathTooLongEvent(this, offset, _tokens.get(offset)));
+                configuration().getEventBus().post(new PathTooLongEvent(this, offset, _tokens.get(offset)));
             }
         }
     }
@@ -345,7 +346,7 @@ public class LeafSegment extends AbstractSegment {
         _upper = upper;
 
         //this triggers tasks like RootingTask
-        _belongsTo.getEventBus().post(new SegmentSplitEvent(this, getChildren()));
+        configuration().getEventBus().post(new SegmentSplitEvent(this, getChildren()));
     }
 
     protected void notifyRemoval(final Put put, final long next) {
@@ -360,7 +361,7 @@ public class LeafSegment extends AbstractSegment {
                     for(BinDocument doc = storage.read(next); doc != null; doc = storage.read(doc.getNext())){
                         if(keySerializer.equals(key, doc.getKey())){
                             if(!doc.isTombstone()){
-                                _belongsTo.getEventBus().post(new RemovalNotificationEvent(doc, RemovalCause.EXPLICIT));
+                                configuration().getEventBus().post(new RemovalNotificationEvent(doc, RemovalCause.EXPLICIT));
                             }
                             return;
                         }
@@ -370,7 +371,7 @@ public class LeafSegment extends AbstractSegment {
                     for(BinDocument doc = storage.read(next); doc != null; doc = storage.read(doc.getNext())){
                         if(keySerializer.equals(key, doc.getKey())){
                             if(!doc.isTombstone()){
-                                _belongsTo.getEventBus().post(new RemovalNotificationEvent(doc, RemovalCause.REPLACED));
+                                configuration().getEventBus().post(new RemovalNotificationEvent(doc, RemovalCause.REPLACED));
                             }
                             return;
                         }
@@ -402,7 +403,7 @@ public class LeafSegment extends AbstractSegment {
         if(abandons.contains(this)){
 
             LOG.info("[segment] invalidate all");
-            _belongsTo.getEventBus().unregister(this);
+            configuration().getEventBus().unregister(this);
             _manager.freeUpBuffer(_mmap);
         }
     }
@@ -485,7 +486,7 @@ public class LeafSegment extends AbstractSegment {
     protected LeafSegment newLeafSegment(final ByteBuffer buffer,
                                          final Range<Integer> range) throws IOException {
 
-        return new LeafSegment(range, _belongsTo, _manager, buffer);
+        return new LeafSegment(range, configuration(), _manager, _storage, buffer);
     }
 
 }

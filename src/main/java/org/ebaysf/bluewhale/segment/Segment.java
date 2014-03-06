@@ -2,9 +2,9 @@ package org.ebaysf.bluewhale.segment;
 
 import com.google.common.collect.Range;
 import com.google.common.math.DoubleMath;
-import org.ebaysf.bluewhale.Cache;
 import org.ebaysf.bluewhale.command.Get;
 import org.ebaysf.bluewhale.command.Put;
+import org.ebaysf.bluewhale.configurable.Configuration;
 import org.ebaysf.bluewhale.serialization.Serializer;
 import org.ebaysf.bluewhale.storage.BinStorage;
 import org.ebaysf.bluewhale.storage.UsageTrack;
@@ -26,7 +26,7 @@ public interface Segment extends UsageTrack {
     int MAX_SEGMENTS = 1 << 16;
     int SHORTEN_PATH_THRESHOLD = 7;
 
-    <K, V> Cache<K, V> belongsTo();
+    Configuration configuration();
 
     Range<Integer> range();
 
