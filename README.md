@@ -9,6 +9,7 @@ The lock free reads allow us to get read performance around 1ms whether sequenti
 
 Yet production ready, try at your own risk; Well, first batch of results coming out:
 
+```
 LevelDB:    iq80 leveldb version 0.4
 Date:       Wed Mar 05 16:41:13 PST 2014
 Keys:       16 bytes each
@@ -31,9 +32,9 @@ readseq      :     1.08474 micros/op;  102.0 MB/s
 compact      :     9.00000 micros/op; 
 readrandom   :     1.80890 micros/op;   61.2 MB/s
 readseq      :     1.09180 micros/op;  101.3 MB/s
+```
 
-
-Followings are the supported features:
+# Followings are the supported features:
 * Guava Cache API supported features except for #asMap (guess why)
 * RemovalNotification
 * Max Journals (storage) limit
@@ -42,7 +43,7 @@ Followings are the supported features:
 * Eviction when size maxed out (LRW)
 * Compression and compaction of old journals
 
-Upcoming features:
+# Upcoming features:
 * Cold cache
 * Simple Stats
 * LRU and other injectable eviction strategy
