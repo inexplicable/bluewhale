@@ -42,7 +42,8 @@ public class BinStorageTest {
         final File temp = Files.createTempDir();
 
         final BinStorage storage = new BinStorageImpl(
-                ConfigurationBuilder.builder(temp, Serializers.BYTE_ARRAY_SERIALIZER, Serializers.BYTE_ARRAY_SERIALIZER)
+                ConfigurationBuilder.builder(Serializers.BYTE_ARRAY_SERIALIZER, Serializers.BYTE_ARRAY_SERIALIZER)
+                    .setLocal(temp)
                     .setEventBus(_eventBus)
                     .setExecutor(_executor)
                     .setBinDocumentFactory(BinDocumentFactories.RAW)
@@ -72,7 +73,8 @@ public class BinStorageTest {
         final File temp = Files.createTempDir();
 
         final BinStorage storage = new BinStorageImpl(
-                ConfigurationBuilder.builder(temp, Serializers.BYTE_ARRAY_SERIALIZER, Serializers.BYTE_ARRAY_SERIALIZER)
+                ConfigurationBuilder.builder(Serializers.BYTE_ARRAY_SERIALIZER, Serializers.BYTE_ARRAY_SERIALIZER)
+                        .setLocal(temp)
                         .setEventBus(_eventBus)
                         .setExecutor(_executor)
                         .setBinDocumentFactory(BinDocumentFactories.RAW)
@@ -102,7 +104,8 @@ public class BinStorageTest {
         final File temp = Files.createTempDir();
 
         final BinStorageImpl storage = new BinStorageImpl(
-                ConfigurationBuilder.builder(temp, Serializers.BYTE_ARRAY_SERIALIZER, Serializers.BYTE_ARRAY_SERIALIZER)
+                ConfigurationBuilder.builder(Serializers.BYTE_ARRAY_SERIALIZER, Serializers.BYTE_ARRAY_SERIALIZER)
+                        .setLocal(temp)
                         .setEventBus(_eventBus)
                         .setExecutor(_executor)
                         .setBinDocumentFactory(BinDocumentFactories.RAW)

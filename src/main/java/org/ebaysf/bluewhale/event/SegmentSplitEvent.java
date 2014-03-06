@@ -14,14 +14,15 @@ public class SegmentSplitEvent extends EventObject {
     private final List<Segment> _splitted;
 
     public SegmentSplitEvent(final Segment source, final List<Segment> splitted) {
+
         super(source);
 
         _splitted = Lists.newArrayList(splitted);
     }
 
-    public Segment before(){
+    public @Override Segment getSource(){
 
-        return (Segment) getSource();
+        return (Segment)super.getSource();
     }
 
     public List<Segment> after(){

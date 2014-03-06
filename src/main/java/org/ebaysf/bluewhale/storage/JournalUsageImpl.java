@@ -23,11 +23,13 @@ public class JournalUsageImpl implements JournalUsage {
     }
 
     public @Override boolean isAllDead() {
+
         return _alives.isEmpty();
     }
 
-    public @Override float getUsageRatio() {
-        return (float)_alives.cardinality() / (float)_documents ;
+    public @Override boolean isUsageRatioAbove(final float usageRatioAtLeast){
+
+        return _alives.cardinality() >= _documents * usageRatioAtLeast;
     }
 
     public @Override SparseBitSet getAlives() {

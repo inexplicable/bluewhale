@@ -30,6 +30,8 @@ public interface Configuration {
 
     int getMaxMemoryMappedJournals();
 
+    float getLeastJournalUsageRatio();
+
     boolean isCleanUpOnExit();
 
     EventBus getEventBus();

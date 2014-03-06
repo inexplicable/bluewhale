@@ -42,7 +42,8 @@ public class CacheTest {
         final EventBus eventBus = new EventBus();
 
         final Cache<String, String> cache = new CacheImpl<String, String>(
-                ConfigurationBuilder.builder(temp, Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
+                ConfigurationBuilder.builder(Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
+                        .setLocal(temp)
                         .setEventBus(eventBus)
                         .setExecutor(_executor)
                         .setConcurrencyLevel(2)
@@ -79,7 +80,8 @@ public class CacheTest {
         final EventBus eventBus = new EventBus();
 
         final Cache<String, String> cache = new CacheImpl<String, String>(
-                ConfigurationBuilder.builder(temp, Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
+                ConfigurationBuilder.builder(Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
+                        .setLocal(temp)
                         .setEventBus(eventBus)
                         .setExecutor(_executor)
                         .setConcurrencyLevel(2)
@@ -126,7 +128,8 @@ public class CacheTest {
         final EventBus eventBus = new AsyncEventBus(_executor);
 
         final Cache<String, String> cache = new CacheImpl<String, String>(
-                ConfigurationBuilder.builder(temp, Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
+                ConfigurationBuilder.builder(Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
+                        .setLocal(temp)
                         .setEventBus(eventBus)
                         .setExecutor(_executor)
                         .setConcurrencyLevel(2)
@@ -188,7 +191,8 @@ public class CacheTest {
         final ExecutorService concurrency = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() / 2 + 1);
 
         final Cache<String, String> cache = new CacheImpl<String, String>(
-                ConfigurationBuilder.builder(temp, Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
+                ConfigurationBuilder.builder(Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
+                        .setLocal(temp)
                         .setEventBus(eventBus)
                         .setExecutor(_executor)
                         .setConcurrencyLevel(2)

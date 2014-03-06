@@ -29,7 +29,6 @@ import org.ebaysf.bluewhale.storage.BinStorage;
 import org.ebaysf.bluewhale.storage.BinStorageImpl;
 import org.ebaysf.bluewhale.storage.UsageTrack;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -253,7 +252,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
     @Subscribe
     public void onSegmentSplit(final SegmentSplitEvent event){
 
-        final Segment before = event.before();
+        final Segment before = event.getSource();
 
         final ImmutableRangeMap.Builder<Integer, Segment> modifying = ImmutableRangeMap.builder();
         for(Map.Entry<Range<Integer>, Segment> entry : _navigableSegments.asMapOfRanges().entrySet()){

@@ -71,7 +71,8 @@ public class DbBenchmark
     static {
         try {
             cache_ = new CacheImpl<byte[], byte[]>(
-                    ConfigurationBuilder.builder(_dir, Serializers.BYTE_ARRAY_SERIALIZER, Serializers.BYTE_ARRAY_SERIALIZER)
+                    ConfigurationBuilder.builder(Serializers.BYTE_ARRAY_SERIALIZER, Serializers.BYTE_ARRAY_SERIALIZER)
+                            .setLocal(_dir)
                             .setEventBus(_eventBus)
                             .setExecutor(_executor)
                             .setConcurrencyLevel(4)

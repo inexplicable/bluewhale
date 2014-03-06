@@ -2,6 +2,7 @@ package org.ebaysf.bluewhale.configurable;
 
 import com.google.common.base.Preconditions;
 import com.google.common.eventbus.EventBus;
+import com.google.common.io.Files;
 import org.ebaysf.bluewhale.document.BinDocumentFactories;
 import org.ebaysf.bluewhale.document.BinDocumentFactory;
 import org.ebaysf.bluewhale.serialization.Serializer;
@@ -15,10 +16,10 @@ import java.util.concurrent.Executors;
  */
 public class ConfigurationBuilder implements Configuration {
 
-    private final File _local;
     private final Serializer<?> _keySerializer;
     private final Serializer<?> _valSerializer;
 
+    private File _local;
     private int _concurrencyLevel = 3;
     private int _maxSegmentDepth = 2;
 
@@ -26,41 +27,44 @@ public class ConfigurationBuilder implements Configuration {
     private int _journalLength = 1 << 29;//512MB
     private int _maxJournals = 8;//4G total
     private int _maxMemoryMappedJournals = 2;//1G RAM
+    private float _leastJournalUsageRatio = 0.1f;
     private boolean _cleanUpOnExit = true;//clean up
     private EventBus _eventBus = new EventBus();//synchronous
     private ExecutorService _executor = Executors.newCachedThreadPool();
 
-    public static <K, V> ConfigurationBuilder builder(final File local,
-                                                      final Serializer<K> keySerializer,
+    public static <K, V> ConfigurationBuilder builder(final Serializer<K> keySerializer,
                                                       final Serializer<V> valSerializer){
 
-        return new <K, V>ConfigurationBuilder(local, keySerializer, valSerializer);
+        return new <K, V>ConfigurationBuilder(keySerializer, valSerializer);
     }
 
-    private <K, V> ConfigurationBuilder(final File local,
-                                        final Serializer<K> keySerializer,
+    private <K, V> ConfigurationBuilder(final Serializer<K> keySerializer,
                                         final Serializer<V> valSerializer){
-        _local = local;
         _keySerializer = keySerializer;
         _valSerializer = valSerializer;
     }
 
     public @Override File getLocal(){
+        if(_local == null){
+            _local = Files.createTempDir();
+        }
         return _local;
     }
 
-    @Override
-    public <K> Serializer<K> getKeySerializer(){
+    public ConfigurationBuilder setLocal(final File local){
+        _local = Preconditions.checkNotNull(local);
+        return this;
+    }
+
+    public @Override <K> Serializer<K> getKeySerializer(){
         return (Serializer<K>)_keySerializer;
     }
 
-    @Override
-    public <V> Serializer<V> getValSerializer(){
+    public @Override <V> Serializer<V> getValSerializer(){
         return (Serializer<V>)_valSerializer;
     }
 
-    @Override
-    public int getConcurrencyLevel(){
+    public @Override int getConcurrencyLevel(){
         return _concurrencyLevel;
     }
 
@@ -70,8 +74,7 @@ public class ConfigurationBuilder implements Configuration {
         return this;
     }
 
-    @Override
-    public int getMaxSegmentDepth(){
+    public @Override int getMaxSegmentDepth(){
         return _maxSegmentDepth;
     }
 
@@ -81,8 +84,7 @@ public class ConfigurationBuilder implements Configuration {
         return this;
     }
 
-    @Override
-    public BinDocumentFactory getBinDocumentFactory(){
+    public @Override BinDocumentFactory getBinDocumentFactory(){
         return _factory;
     }
 
@@ -91,8 +93,7 @@ public class ConfigurationBuilder implements Configuration {
         return this;
     }
 
-    @Override
-    public int getJournalLength(){
+    public @Override int getJournalLength(){
         return _journalLength;
     }
 
@@ -102,8 +103,7 @@ public class ConfigurationBuilder implements Configuration {
         return this;
     }
 
-    @Override
-    public int getMaxJournals(){
+    public @Override int getMaxJournals(){
         return _maxJournals;
     }
 
@@ -113,8 +113,7 @@ public class ConfigurationBuilder implements Configuration {
         return this;
     }
 
-    @Override
-    public int getMaxMemoryMappedJournals(){
+    public @Override int getMaxMemoryMappedJournals(){
         return _maxMemoryMappedJournals;
     }
 
@@ -124,8 +123,17 @@ public class ConfigurationBuilder implements Configuration {
         return this;
     }
 
-    @Override
-    public boolean isCleanUpOnExit(){
+    public @Override float getLeastJournalUsageRatio(){
+        return _leastJournalUsageRatio;
+    }
+
+    public ConfigurationBuilder setLeastJournalUsageRatio(final float leastJournalUsageRatio){
+        Preconditions.checkArgument(leastJournalUsageRatio >= 0f && leastJournalUsageRatio < 0.5f);
+        _leastJournalUsageRatio = leastJournalUsageRatio;
+        return this;
+    }
+
+    public @Override boolean isCleanUpOnExit(){
         return _cleanUpOnExit;
     }
 
@@ -134,8 +142,7 @@ public class ConfigurationBuilder implements Configuration {
         return this;
     }
 
-    @Override
-    public EventBus getEventBus(){
+    public @Override EventBus getEventBus(){
         return _eventBus;
     }
 
@@ -144,8 +151,7 @@ public class ConfigurationBuilder implements Configuration {
         return this;
     }
 
-    @Override
-    public ExecutorService getExecutor(){
+    public @Override ExecutorService getExecutor(){
         return _executor;
     }
 
@@ -164,6 +170,7 @@ public class ConfigurationBuilder implements Configuration {
                 getJournalLength(),
                 getMaxJournals(),
                 getMaxMemoryMappedJournals(),
+                getLeastJournalUsageRatio(),
                 isCleanUpOnExit(),
                 getEventBus(),
                 getExecutor());
@@ -182,6 +189,7 @@ public class ConfigurationBuilder implements Configuration {
         private final int _journalLength;//512MB
         private final int _maxJournals;//4G total
         private final int _maxMemoryMappedJournals;//1G RAM
+        private final float _leastJournalUsageRatio;
         private final boolean _cleanUpOnExit;//clean up
         private final EventBus _eventBus;//synchronous
         private final ExecutorService _executor;
@@ -195,6 +203,7 @@ public class ConfigurationBuilder implements Configuration {
                                         final int journalLength,
                                         final int maxJournals,
                                         final int maxMemoryMappedJournals,
+                                        final float leastJournalUsageRatio,
                                         final boolean cleanUpOnExit,
                                         final EventBus eventBus,
                                         final ExecutorService executor) {
@@ -209,6 +218,7 @@ public class ConfigurationBuilder implements Configuration {
             _journalLength = journalLength;
             _maxJournals = maxJournals;
             _maxMemoryMappedJournals = maxMemoryMappedJournals;
+            _leastJournalUsageRatio = leastJournalUsageRatio;
             _cleanUpOnExit = cleanUpOnExit;
             _eventBus = eventBus;
             _executor = executor;
@@ -218,58 +228,51 @@ public class ConfigurationBuilder implements Configuration {
             return _local;
         }
 
-        @Override
-        public <K> Serializer<K> getKeySerializer(){
+        public @Override <K> Serializer<K> getKeySerializer(){
             return (Serializer<K>)_keySerializer;
         }
 
-        @Override
-        public <V> Serializer<V> getValSerializer(){
+        public @Override <V> Serializer<V> getValSerializer(){
             return (Serializer<V>)_valSerializer;
         }
 
-        @Override
-        public int getConcurrencyLevel(){
+        public @Override int getConcurrencyLevel(){
             return _concurrencyLevel;
         }
 
-        @Override
-        public int getMaxSegmentDepth(){
+        public @Override int getMaxSegmentDepth(){
             return _maxSegmentDepth;
         }
 
-        @Override
-        public BinDocumentFactory getBinDocumentFactory(){
+        public @Override BinDocumentFactory getBinDocumentFactory(){
             return _factory;
         }
 
-        @Override
-        public int getJournalLength(){
+        public @Override int getJournalLength(){
             return _journalLength;
         }
 
-        @Override
-        public int getMaxJournals(){
+        public @Override int getMaxJournals(){
             return _maxJournals;
         }
 
-        @Override
-        public int getMaxMemoryMappedJournals(){
+        public @Override int getMaxMemoryMappedJournals(){
             return _maxMemoryMappedJournals;
         }
 
-        @Override
-        public boolean isCleanUpOnExit(){
+        public @Override float getLeastJournalUsageRatio(){
+            return _leastJournalUsageRatio;
+        }
+
+        public @Override boolean isCleanUpOnExit(){
             return _cleanUpOnExit;
         }
 
-        @Override
-        public EventBus getEventBus(){
+        public @Override EventBus getEventBus(){
             return _eventBus;
         }
 
-        @Override
-        public ExecutorService getExecutor(){
+        public @Override ExecutorService getExecutor(){
             return _executor;
         }
     }

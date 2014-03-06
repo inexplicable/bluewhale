@@ -17,26 +17,31 @@ public class FileChannelBinDocumentRawReader implements BinDocumentFactory.BinDo
     private final byte _state;
     private final int _keyLength;
     private final int _valLength;
-    private ByteBuffer _buffer;
+    private final ByteBuffer _buffer;
 
-    public FileChannelBinDocumentRawReader(final FileChannel fch, final int offset, final int anticipatedLength)
-        throws IOException {
+    public FileChannelBinDocumentRawReader(final FileChannel fch,
+                                           final int offset,
+                                           final int anticipatedLength) throws IOException {
 
         _fch = fch;
-        _buffer = ByteBuffer.allocate(anticipatedLength);
-        _fch.read(_buffer, offset);
 
-        final long statesAndLengths = _buffer.getLong(0);
+        final ByteBuffer buffer = ByteBuffer.allocate(anticipatedLength);
+        _fch.read(buffer, offset);
+
+        final long statesAndLengths = buffer.getLong(0);
         _state = (byte)(statesAndLengths >>> SHIFTS_OF_STATE);
         _keyLength = (int)(MASK_OF_KEY_LENGTH & (statesAndLengths >>> SHIFTS_OF_KEY_LENGTH));
         _valLength = (int)(MASK_OF_VAL_LENGTH & statesAndLengths);
 
         final int actualLength = getLength();
         if(actualLength > anticipatedLength){
-            final ByteBuffer actualBuffer = ByteBuffer.allocate(actualLength);
-            actualBuffer.put(_buffer);
-            _fch.read(actualBuffer, offset + anticipatedLength);
-            _buffer = actualBuffer;
+            final ByteBuffer completeBuffer = ByteBuffer.allocate(actualLength);
+            completeBuffer.put(buffer);
+            _fch.read(completeBuffer, offset + anticipatedLength);
+            _buffer = completeBuffer;
+        }
+        else{
+            _buffer = buffer;
         }
     }
 

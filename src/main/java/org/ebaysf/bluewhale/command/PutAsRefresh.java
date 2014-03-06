@@ -1,16 +1,21 @@
 package org.ebaysf.bluewhale.command;
 
+import com.google.common.base.Throwables;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.document.BinDocumentRaw;
 import org.ebaysf.bluewhale.serialization.Serializer;
 import org.xerial.snappy.Snappy;
 
 import java.nio.ByteBuffer;
+import java.util.logging.Logger;
 
 /**
  * Created by huzhou on 3/4/14.
  */
 public class PutAsRefresh implements Put {
+
+    private static final Logger LOG = Logger.getLogger(PutAsRefresh.class.getName());
+    private static final byte COMPRESSED_OR_TOMBSTONE = BinDocument.COMPRESSED | BinDocument.TOMBSTONE;
 
     private final ByteBuffer _keyAsByteBuffer;
     private ByteBuffer _valAsByteBuffer;
@@ -28,19 +33,24 @@ public class PutAsRefresh implements Put {
         _hashCode = hashCode;
         _lastModified = System.nanoTime();
 
-        if((state & BinDocument.COMPRESSED) == 0){
-            final ByteBuffer compressing = ByteBuffer.allocate(valAsByteBuffer.remaining());
+        if((state & COMPRESSED_OR_TOMBSTONE) == 0){ //yet compressed, not tombstone
+            final ByteBuffer compression = ByteBuffer.allocate(valAsByteBuffer.remaining());
             try {
-                final int length = Snappy.compress(valAsByteBuffer, compressing);
-                compressing.rewind();
-                compressing.limit(length);
-                _valAsByteBuffer = compressing;
+                final int length = Snappy.compress(valAsByteBuffer, compression);
+                compression.rewind();
+                compression.limit(length);
                 _state = (byte)(state & BinDocument.COMPRESSED);
+                _valAsByteBuffer = compression;
+                return;
             }
             catch(Exception e) {
-                _valAsByteBuffer = valAsByteBuffer;
+                LOG.warning(Throwables.getStackTraceAsString(e));
             }
         }
+
+        //already compressed, or is a tombstone, or compression failed;
+        _state = state;
+        _valAsByteBuffer = valAsByteBuffer.duplicate();
     }
 
     public @Override <K> K getKey(Serializer<K> keySerializer) {

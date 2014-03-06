@@ -1,5 +1,6 @@
 package org.ebaysf.bluewhale.storage;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.Range;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.document.BinDocumentFactory;
@@ -9,11 +10,14 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.logging.Logger;
 
 /**
  * Created by huzhou on 2/27/14.
  */
 public class ByteBufferBinJournal extends AbstractBinJournal {
+
+    private static final Logger LOG = Logger.getLogger(ByteBufferBinJournal.class.getName());
 
     protected final ByteBuffer _mmap;
 
@@ -53,6 +57,7 @@ public class ByteBufferBinJournal extends AbstractBinJournal {
             return new BinDocumentIterator(_mmap, 0);
         }
         catch (IOException e) {
+            LOG.warning(Throwables.getStackTraceAsString(e));
             return Collections.<BinDocument>emptyList().iterator();
         }
     }

@@ -78,10 +78,10 @@ public class PutAsIs implements Put {
         return -1L;
     }
 
-    @Override
-    public <K, V> BinDocument create(final Serializer<K> keySerializer,
-                              final Serializer<V> valSerializer,
-                              final long next) {
+    public @Override <K, V> BinDocument create(final Serializer<K> keySerializer,
+                                               final Serializer<V> valSerializer,
+                                               final long next) {
+
         return new BinDocumentRaw()
                 .setKey(getKeyAsByteBuffer(keySerializer))
                 .setValue(getValAsByteBuffer(valSerializer))

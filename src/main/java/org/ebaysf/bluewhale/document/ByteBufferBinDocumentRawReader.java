@@ -69,29 +69,6 @@ public class ByteBufferBinDocumentRawReader implements BinDocumentFactory.BinDoc
     public @Override BinDocument verify(){
         return this;
     }
-//
-//    protected ByteBuffer readRaw() {
-//        final ByteBuffer raw = ByteBuffer.allocate(BinDocumentRaw.getLength(_keyLength, _valLength));
-//
-//        int readAt = 0;
-//        for(int fast = _offset, bufferLimit = _buffer.limit() - Longs.BYTES, readLimit = raw.limit() - Longs.BYTES;
-//            fast < bufferLimit && readAt < readLimit;
-//            fast += Longs.BYTES, readAt += Longs.BYTES){
-//
-//            raw.putLong(readAt, _buffer.getLong(fast));
-//        }
-//        for(int slow = _offset, bufferLimit = _buffer.limit(), readLimit = raw.limit();
-//            slow < bufferLimit && readAt < readLimit;
-//            slow += 1, readAt += 1){
-//
-//            raw.put(_buffer.get(slow));
-//        }
-//
-//        if(readAt < raw.limit()){
-//            return null;
-//        }
-//        return raw;
-//    }
 
     public @Override int getLength(){
         return BinDocumentRaw.getLength(_keyLength, _valLength);

@@ -18,22 +18,19 @@ public class PutAsInvalidate extends PutAsIs {
     public static final ByteBuffer ZERO_BYTE_BUFFER = ByteBuffer.allocate(0);
 
     public <K> PutAsInvalidate(final K key,
-                           final int hashCode){
-        this(key, hashCode, System.nanoTime());
-    }
+                               final int hashCode,
+                               final long lastModified) {
 
-    public <K> PutAsInvalidate(final K key,
-                           final int hashCode,
-                           final long lastModified){
         super(key, null, hashCode, lastModified);
     }
 
     public @Override <K, V> BinDocument create(final Serializer<K> keySerializer,
-                                     final Serializer<V> valSerializer,
-                                     final long next) {
+                              final Serializer<V> valSerializer,
+                              final long next) {
+
         return new BinDocumentRaw()
                 .setKey(getKeyAsByteBuffer(keySerializer))
-                .setValue(ZERO_BYTE_BUFFER.duplicate())
+                .setValue(ZERO_BYTE_BUFFER)
                 .setHashCode(getHashCode())
                 .setNext(next)//normal token would be -1, positive tokens used only by optimizations
                 .setLastModified(getLastModified())

@@ -11,7 +11,7 @@ public interface JournalUsage {
 
     boolean isAllDead();
 
-    float getUsageRatio();
+    boolean isUsageRatioAbove(final float usageRatioAtLeast);
 
     SparseBitSet getAlives();
 }

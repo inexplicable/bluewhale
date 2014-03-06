@@ -67,17 +67,21 @@ public class BinDocumentRawWriter implements BinDocumentFactory.BinDocumentWrite
         return BinDocumentRaw.getLength(getKey().remaining(), getValue().remaining());
     }
 
+    private static final int MAX_KEY_LENGTH = 1 << (Integer.SIZE - Byte.SIZE);
+    private static final int STATE_SHIFTS = Integer.SIZE - Byte.SIZE;
+    private static final int STATE_AND_KEY_LENGTH_SHIFTS = Integer.SIZE;
+
     public @Override void write(final ByteBuffer buffer, final int offset) {
 
         final ByteBuffer key = getKey();
-        Preconditions.checkState(key.remaining() < (1 << 24) - 1);
-
         final ByteBuffer val = getValue();
+
+        Preconditions.checkState(key.remaining() < MAX_KEY_LENGTH);
 
         final ByteBuffer writer = buffer.duplicate();
 
         writer.position(offset);
-        writer.putLong((long)(getState()) << (24L + 32L) | (long)(key.remaining()) << 32L | (long)val.remaining());
+        writer.putLong((((long)(getState() << STATE_SHIFTS | key.remaining())) << STATE_AND_KEY_LENGTH_SHIFTS) | (long)val.remaining());
         writer.putLong(getNext());
         writer.putInt(getHashCode());
         writer.putLong(getLastModified());

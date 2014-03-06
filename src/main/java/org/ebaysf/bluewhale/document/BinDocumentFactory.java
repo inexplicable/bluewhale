@@ -42,7 +42,7 @@ public interface BinDocumentFactory {
 
     BinDocumentWriter getWriter(final BinDocument document);
 
-    BinDocumentReader getReader(final ByteBuffer buffer, final int offset) throws IOException ;
+    BinDocumentReader getReader(final ByteBuffer buffer, final int offset) throws IOException;
 
     BinDocumentReader getReader(final FileChannel fch, final int offset, final int anticipatedLength) throws IOException;
 

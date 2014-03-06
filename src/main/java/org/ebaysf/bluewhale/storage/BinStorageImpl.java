@@ -335,15 +335,15 @@ public class BinStorageImpl implements BinStorage {
                                 if(alives.get(index)){
                                     alives.set(index, _usageTrack.using(suspect));
                                 }
-                                if(alives.cardinality() > journal.getDocumentSize() * 0.1f){
-                                    break;//no more investigation needed upon this journal till suspect time.
+                                if(usage.isUsageRatioAbove(_configuration.getLeastJournalUsageRatio())){
+                                    break;//no more investigation needed upon this journal till next time.
                                 }
                             }
 
                             if(usage.isAllDead()){
                                 investigation.put(InspectionReport.EvictionRequired, journal);
                             }
-                            else if(usage.getUsageRatio() < 0.1f){
+                            else if(usage.isUsageRatioAbove(_configuration.getLeastJournalUsageRatio())){
                                 investigation.put(InspectionReport.CompressionRequired, journal);
                             }
                             else{

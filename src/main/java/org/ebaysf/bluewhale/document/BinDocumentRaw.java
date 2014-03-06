@@ -1,32 +1,24 @@
 package org.ebaysf.bluewhale.document;
 
-import com.dyuproject.protostuff.Tag;
 import com.google.common.base.Objects;
 
 import java.nio.ByteBuffer;
 
 public class BinDocumentRaw implements BinDocument {
 
-    @Tag(2)
     private ByteBuffer _key;
 
-    @Tag(3)
     private ByteBuffer _val;
 
-    @Tag(4)
     private int _hashCode;
 
-    @Tag(1)
     private long _next;
 
-    @Tag(5)
     private long _lastModified;
 
-    @Tag(6)
     private byte _state = 0x00;
 
-    @Override
-    public ByteBuffer getKey() {
+    public @Override ByteBuffer getKey() {
         return _key.duplicate();
     }
 
@@ -101,22 +93,24 @@ public class BinDocumentRaw implements BinDocument {
         if(other instanceof BinDocument){
             final BinDocument that = (BinDocument)other;
             return _hashCode == that.getHashCode()
+                    && _next == that.getNext()
                     && Objects.equal(getKey(), that.getKey())
                     && Objects.equal(getValue(), that.getValue())
-                    && _next == that.getNext()
                     && _lastModified == that.getLastModified()
                     && _state == that.getState();
         }
         return false;
     }
 
+    private static final int CONSTANT_LENGTH = BYTES_OF_INT //length of `key` buffer, highest byte as for `state`
+            + BYTES_OF_INT //length of `value' buffer
+            + BYTES_OF_LONG //next token
+            + BYTES_OF_INT  //hashCode
+            + BYTES_OF_LONG; //last modified
+
     public static int getLength(final int keyLength, final int valLength) {
 
-        return BYTES_OF_INT //length of `key` buffer, highest byte as for `state`
-                + BYTES_OF_INT //length of `value' buffer
-                + BYTES_OF_LONG //next token
-                + BYTES_OF_INT  //hashCode
-                + BYTES_OF_LONG //last modified
+        return CONSTANT_LENGTH
                 + keyLength //bytes of `key`
                 + valLength; //bytes of `value`
     }

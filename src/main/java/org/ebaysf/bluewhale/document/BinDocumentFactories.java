@@ -11,18 +11,21 @@ public abstract class BinDocumentFactories {
 
     public static final BinDocumentFactory RAW = new BinDocumentFactory() {
 
-        @Override
-        public BinDocumentWriter getWriter(BinDocument document) {
+        public @Override BinDocumentWriter getWriter(final BinDocument document) {
+
             return new BinDocumentRawWriter(document);
         }
 
-        @Override
-        public BinDocumentReader getReader(ByteBuffer buffer, int offset) throws IOException {
+        public @Override BinDocumentReader getReader(final ByteBuffer buffer,
+                                                     final int offset) throws IOException {
+
             return new ByteBufferBinDocumentRawReader(buffer, offset);
         }
 
-        @Override
-        public BinDocumentReader getReader(FileChannel fch, int offset, int anticipatedLength) throws IOException {
+        public @Override BinDocumentReader getReader(final FileChannel fch,
+                                                     final int offset,
+                                                     final int anticipatedLength) throws IOException {
+
             return new FileChannelBinDocumentRawReader(fch, offset, anticipatedLength);
         }
     };
