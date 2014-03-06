@@ -4,10 +4,9 @@ import com.google.common.base.Strings;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.Lists;
+import com.google.common.eventbus.AsyncEventBus;
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.Files;
-import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
 import org.ebaysf.bluewhale.document.BinDocumentFactories;
 import org.ebaysf.bluewhale.serialization.Serializers;
 import org.ebaysf.bluewhale.storage.BinJournal;
@@ -29,7 +28,6 @@ import java.util.concurrent.atomic.AtomicLong;
 public class CacheTest {
 
     private static final ExecutorService _executor = Executors.newCachedThreadPool();
-    private static final ListeningExecutorService _listenableExecutor = MoreExecutors.listeningDecorator(_executor);
 
     @AfterClass
     public static void afterClass(){
@@ -44,10 +42,11 @@ public class CacheTest {
 
         final Cache<String, String> cache = new CacheImpl<String, String>(temp,
                 2,
+                2,
                 Serializers.STRING_SERIALIZER,
                 Serializers.STRING_SERIALIZER,
                 eventBus,
-                _listenableExecutor,
+                _executor,
                 new RemovalListener<String, String>() {
                     @Override
                     public void onRemoval(RemovalNotification<String, String> notification) {
@@ -75,14 +74,15 @@ public class CacheTest {
     public void testCachePerf() throws IOException, ExecutionException, InterruptedException {
 
         final File temp = Files.createTempDir();
-        final EventBus eventBus = new EventBus();
+        final EventBus eventBus = new AsyncEventBus(_executor);
 
         final Cache<String, String> cache = new CacheImpl<String, String>(temp,
+                2,
                 2,
                 Serializers.STRING_SERIALIZER,
                 Serializers.STRING_SERIALIZER,
                 eventBus,
-                _listenableExecutor,
+                _executor,
                 new RemovalListener<String, String>() {
                     @Override
                     public void onRemoval(RemovalNotification<String, String> notification) {
@@ -95,9 +95,9 @@ public class CacheTest {
                 2,
                 Collections.<BinJournal>emptyList());
 
-        final String[] candidates = new String[20000];
+        final String[] candidates = new String[1000];
         for(int i = 0; i < candidates.length; i += 1){
-            candidates[i] = Strings.padStart(String.valueOf(i), 100, '*');//100bytes apprx
+            candidates[i] = Strings.padStart(String.valueOf(i), 10, '*');//10bytes apprx
         }
 
         Assert.assertNotNull(cache);
@@ -107,7 +107,7 @@ public class CacheTest {
             Assert.assertNull(cache.getIfPresent(c));
         }
 
-        System.out.printf("[sequential] 10k sized cache, 100bytes key, 100bytes value, getIfPresent took: %dns\n", (System.nanoTime() - begin) / candidates.length);
+        System.out.printf("[sequential] 1k sized cache, 100bytes key, 100bytes value, getIfPresent took: %dns\n", (System.nanoTime() - begin) / candidates.length);
 
         begin = System.nanoTime();
         for(final String c : candidates){
@@ -118,32 +118,32 @@ public class CacheTest {
             }));
         }
 
-        System.out.printf("[sequential] 10k sized cache, 100bytes key, 100bytes value, get took: %dns\n", (System.nanoTime() - begin) / candidates.length);
+        System.out.printf("[sequential] 1k sized cache, 100bytes key, 100bytes value, get took: %dns\n", (System.nanoTime() - begin) / candidates.length);
 
         begin = System.nanoTime();
         for(final String c : candidates){
             Assert.assertEquals(c, cache.getIfPresent(c));
         }
 
-        System.out.printf("[sequential] 10k sized cache, 100bytes key, 100bytes value, getIfPresent took: %dns\n", (System.nanoTime() - begin) / candidates.length);
+        System.out.printf("[sequential] 1k sized cache, 100bytes key, 100bytes value, getIfPresent took: %dns\n", (System.nanoTime() - begin) / candidates.length);
 
-        TimeUnit.SECONDS.sleep(30);
     }
 
     @Test
     public void testConcurrentCachePerf() throws IOException, ExecutionException {
 
         final File temp = Files.createTempDir();
-        final EventBus eventBus = new EventBus();
+        final EventBus eventBus = new AsyncEventBus(_executor);
         final AtomicLong durations = new AtomicLong(0L);
         final ExecutorService concurrency = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() / 2 + 1);
 
         final Cache<String, String> cache = new CacheImpl<String, String>(temp,
                 2,
+                2,
                 Serializers.STRING_SERIALIZER,
                 Serializers.STRING_SERIALIZER,
                 eventBus,
-                _listenableExecutor,
+                _executor,
                 new RemovalListener<String, String>() {
                     @Override
                     public void onRemoval(RemovalNotification<String, String> notification) {

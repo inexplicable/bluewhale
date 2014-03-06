@@ -30,7 +30,7 @@ public class ByteBufferBinJournal extends AbstractBinJournal {
 
         _mmap = buffer;
 
-        _manager.rememberBufferUsedByjournal(_mmap, this);
+        _manager.rememberBufferUsedByJournal(_mmap, this);
     }
 
     public @Override int append(final BinDocument document) throws IOException {

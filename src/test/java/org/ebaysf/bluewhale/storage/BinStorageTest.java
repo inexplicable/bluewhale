@@ -95,7 +95,7 @@ public class BinStorageTest {
 
         final BinStorageImpl storage = new BinStorageImpl(temp,
                 BinDocumentFactories.RAW,
-                1 << 10,//1KB JOURNAL LENGTH
+                1 << 20,//1MB JOURNAL LENGTH
                 8,  //8MB TOTAL JOURNAL BYTES
                 2,
                 Collections.<BinJournal>emptyList(),
@@ -120,7 +120,9 @@ public class BinStorageTest {
             Assert.assertEquals(small, overflow.read(offset));
         }
 
+        Assert.assertEquals(count, overflow.getDocumentSize());
         Assert.assertEquals(pos, overflow.getMemoryMappedBuffer().limit());
+        Assert.assertEquals(pos, overflow.getJournalLength());
 
         int meet = 0;
         for(Iterator<BinDocument> it = overflow.iterator(); it.hasNext(); meet += 1){
@@ -129,22 +131,34 @@ public class BinStorageTest {
 
         Assert.assertEquals(count, meet);
 
-        final BinJournal downgrade = new FileChannelBinJournal(overflow.local(),
-                overflow.range(),
-                storage._manager,
-                overflow.usage(),
-                storage._factory,
-                overflow.getJournalLength(),
-                overflow.getDocumentSize(),
-                -1);
+        final BinJournal immutable = storage.immutable(overflow);
+        Assert.assertNotNull(immutable.usage());
+        Assert.assertEquals(BinJournal.JournalState.BufferedReadOnly, immutable.currentState());
+        Assert.assertEquals(overflow.getDocumentSize(), immutable.getDocumentSize());
+        Assert.assertEquals(overflow.getJournalLength(), immutable.getJournalLength());
+        Assert.assertEquals(overflow.usage().getLastModified(), immutable.usage().getLastModified());
+        Assert.assertEquals(count, immutable.usage().getAlives().cardinality());
 
+        meet = 0;
+        for(Iterator<BinDocument> it = immutable.iterator(); it.hasNext(); meet += 1){
+            Assert.assertEquals(small, it.next());
+        }
+        Assert.assertEquals(count, meet);
+
+        final BinJournal downgrade = storage.downgrade(immutable);
         Assert.assertNotNull(downgrade);
+        Assert.assertEquals(BinJournal.JournalState.FileChannelReadOnly, downgrade.currentState());
+        Assert.assertEquals(immutable.getDocumentSize(), downgrade.getDocumentSize());
+        Assert.assertEquals(immutable.getJournalLength(), downgrade.getJournalLength());
+        Assert.assertSame(immutable.usage(), downgrade.usage());
+        Assert.assertEquals(count, downgrade.usage().getAlives().cardinality());
 
         meet = 0;
         for(Iterator<BinDocument> it = downgrade.iterator(); it.hasNext(); meet += 1){
             Assert.assertEquals(small, it.next());
         }
-
         Assert.assertEquals(count, meet);
+
+        Thread.sleep(30);
     }
 }

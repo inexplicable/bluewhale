@@ -1,6 +1,7 @@
 package org.ebaysf.bluewhale;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.cache.CacheStats;
 import com.google.common.cache.RemovalCause;
 import com.google.common.cache.RemovalListener;
@@ -12,7 +13,6 @@ import com.google.common.collect.RangeMap;
 import com.google.common.eventbus.AllowConcurrentEvents;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
-import com.google.common.util.concurrent.ListeningExecutorService;
 import org.ebaysf.bluewhale.command.GetImpl;
 import org.ebaysf.bluewhale.command.PutAsInvalidate;
 import org.ebaysf.bluewhale.command.PutAsIs;
@@ -40,11 +40,15 @@ import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.logging.Logger;
 
 /**
  * Created by huzhou on 2/28/14.
  */
 public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
+
+    private static final Logger LOG = Logger.getLogger(CacheImpl.class.getName());
 
     private final File _local;
     private final int _concurrencyLevel;
@@ -56,7 +60,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
 
     private final RemovalListener<K, V> _removalListener;
     private final EventBus _eventBus;
-    private final ListeningExecutorService _executor;
+    private final ExecutorService _executor;
 
     protected volatile RangeMap<Integer, Segment> _navigableSegments;
 
@@ -66,7 +70,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
                      final Serializer<K> keySerializer,
                      final Serializer<V> valSerializer,
                      final EventBus eventBus,
-                     final ListeningExecutorService executor,
+                     final ExecutorService executor,
                      final RemovalListener<K, V> removalListener,
                      final BinDocumentFactory factory,
                      final int journalLength,
@@ -97,7 +101,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         return _eventBus;
     }
 
-    public @Override ListeningExecutorService getExecutor() {
+    public @Override ExecutorService getExecutor() {
 
         return _executor;
     }
@@ -127,11 +131,10 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         final Segment zone = route(segmentCode);
 
         try {
-
             return zone.get(new GetImpl(key, null, hashCode, false));
         }
         catch (Exception ex) {
-
+            LOG.warning(Throwables.getStackTraceAsString(ex));
             return null;
         }
     }
@@ -145,12 +148,10 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         final Segment zone = route(segmentCode);
 
         try {
-
             return zone.get(new GetImpl(key, valueLoader, hashCode, true));
         }
         catch (Exception ex) {
-
-            ex.printStackTrace();
+            LOG.warning(Throwables.getStackTraceAsString(ex));
             return null;
         }
     }
@@ -177,11 +178,10 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         final Segment zone = route(segmentCode);
 
         try {
-
             zone.put(new PutAsIs(key, value, hashCode, System.nanoTime()));
         }
         catch (Exception ex) {
-
+            LOG.warning(Throwables.getStackTraceAsString(ex));
         }
     }
 
@@ -204,11 +204,10 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         final Segment zone = route(segmentCode);
 
         try{
-
             zone.put(new PutAsInvalidate(key, hashCode, System.nanoTime()));
         }
         catch (Exception ex) {
-
+            LOG.warning(Throwables.getStackTraceAsString(ex));
         }
     }
 
@@ -231,7 +230,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
             _navigableSegments = initSegments(_local, _concurrencyLevel);
         }
         catch (IOException e) {
-            e.printStackTrace();
+            LOG.warning(Throwables.getStackTraceAsString(e));
         }
 
         getEventBus().post(new PostInvalidateAllEvent(abandons, this));
@@ -325,8 +324,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
                 modifying.put(child.range(), child);
             }
             catch(Exception e){
-                e.printStackTrace();
-                System.err.printf("[before]\t%s\n[after]%s\n", before, after);
+                LOG.warning(Throwables.getStackTraceAsString(e));
             }
         }
 

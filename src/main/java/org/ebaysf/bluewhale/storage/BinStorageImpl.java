@@ -6,8 +6,6 @@ import com.google.common.cache.RemovalCause;
 import com.google.common.collect.*;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningExecutorService;
 import org.brettw.SparseBitSet;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.document.BinDocumentFactory;
@@ -21,6 +19,8 @@ import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.*;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
@@ -44,7 +44,7 @@ public class BinStorageImpl implements BinStorage {
     private final int _maxJournals;
     private final int _maxMemoryMappedJournals;
     private final EventBus _eventBus;
-    private final ListeningExecutorService _executor;
+    private final ExecutorService _executor;
     private final UsageTrack _usageTrack;
     private final ReentrantLock _lock;
 
@@ -53,7 +53,7 @@ public class BinStorageImpl implements BinStorage {
 
     protected volatile BinJournal _journaling;
     protected volatile RangeMap<Integer, BinJournal> _navigableJournals;
-    protected volatile ListenableFuture<ListMultimap<InspectionReport, BinJournal>> _openInvestigation;
+    protected volatile Future<ListMultimap<InspectionReport, BinJournal>> _openInvestigation;
 
     public BinStorageImpl(final File local,
                           final BinDocumentFactory factory,
@@ -62,7 +62,7 @@ public class BinStorageImpl implements BinStorage {
                           final int maxMemoryMappedJournals,
                           final List<BinJournal> loadings,
                           final EventBus eventBus,
-                          final ListeningExecutorService executor,
+                          final ExecutorService executor,
                           final UsageTrack usageTrack) throws IOException {
 
         _local = Objects.firstNonNull(local, com.google.common.io.Files.createTempDir());
@@ -236,7 +236,7 @@ public class BinStorageImpl implements BinStorage {
         return _eventBus;
     }
 
-    protected ListeningExecutorService getExecutor() {
+    protected ExecutorService getExecutor() {
 
         return _executor;
     }

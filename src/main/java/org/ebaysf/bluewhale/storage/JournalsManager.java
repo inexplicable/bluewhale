@@ -4,13 +4,13 @@ import com.google.common.cache.RemovalCause;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.eventbus.EventBus;
-import com.google.common.util.concurrent.ListeningExecutorService;
 import org.ebaysf.bluewhale.util.Files;
 import org.ebaysf.bluewhale.util.Maps;
 
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.logging.Logger;
 
 /**
@@ -22,7 +22,7 @@ public class JournalsManager {
 
     private final File _local;
     protected final EventBus _eventBus;
-    protected final ListeningExecutorService _executor;
+    protected final ExecutorService _executor;
 
     private final RemovalListener<ByteBuffer, BinJournal> _journalsNoLongUsedListener = new RemovalListener<ByteBuffer, BinJournal>() {
         public @Override void onRemoval(RemovalNotification<ByteBuffer, BinJournal> notification) {
@@ -42,7 +42,7 @@ public class JournalsManager {
 
     public JournalsManager(final File local,
                            final EventBus eventBus,
-                           final ListeningExecutorService executor){
+                           final ExecutorService executor){
 
         _local = local;
         _eventBus = eventBus;
@@ -58,11 +58,11 @@ public class JournalsManager {
      * this is added to avoid premature releasing of the buffer, using weak reference journals, we could determine
      * when a ByteBuffer is ready to be recycled by querying whether its belonging journal has been nulled.
      *
-     * every Leafjournal construction must inform this reference relationship in order to make it work.
+     * every construction must inform this reference relationship in order to make it work.
      * @param buffer
      * @param journal
      */
-    protected void rememberBufferUsedByjournal(final ByteBuffer buffer, final BinJournal journal){
+    protected void rememberBufferUsedByJournal(final ByteBuffer buffer, final BinJournal journal){
 
         _buffersUsedByJournals.put(buffer, journal);
     }
