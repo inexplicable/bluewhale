@@ -61,7 +61,7 @@ enum Order {
 public class DbBenchmark
 {
 	private static final File _dir = Files.createTempDir();
-    private static final ExecutorService _executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() / 2 + 1);
+    private static final ExecutorService _executor = Executors.newCachedThreadPool();
     private static final EventBus _eventBus = new EventBus();
 
     //bluewhale
