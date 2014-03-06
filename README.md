@@ -42,12 +42,37 @@ readseq      :     1.09180 micros/op;  101.3 MB/s
 * Max Segment Depth (concurrency) limit
 * Eviction when size maxed out (LRW)
 * Compression and compaction of old journals
+* Files cleanup on close
 
 # Upcoming features:
 * Cold cache
 * Simple Stats
 * LRU and other injectable eviction strategy
-* Files cleanup on close
 * Checksum document factory as an option
 * Cache Builder semantics
 * TTL
+
+```
+LevelDB:    iq80 leveldb version 0.4
+Date:       Thu Mar 06 13:55:25 PST 2014
+Keys:       16 bytes each
+Values:     100 bytes each (50 bytes after compression)
+Entries:    10000000
+RawSize:    1106.3 MB (estimated)
+FileSize:   629.4 MB (estimated)
+------------------------------------------------
+fillseq      :     0.90590 micros/op;  122.1 MB/s
+fillseq      :     2.54747 micros/op;   43.4 MB/s
+fillsync     :     3.93100 micros/op;   28.1 MB/s (10000 ops)
+fillrandom   :     2.85027 micros/op;   38.8 MB/s
+fillseq      :     3.19238 micros/op;   34.7 MB/s
+overwrite    :     2.48910 micros/op;   44.4 MB/s
+fillseq      :     2.61987 micros/op;   42.2 MB/s
+readseq      :     1.11218 micros/op;   99.5 MB/s
+readrandom   :     1.81675 micros/op;   60.9 MB/s
+readrandom   :     1.81146 micros/op;   61.1 MB/s
+readseq      :     1.10340 micros/op;  100.3 MB/s
+compact      :     9.00000 micros/op; 
+readrandom   :     1.79900 micros/op;   61.5 MB/s
+readseq      :     1.10308 micros/op;  100.3 MB/s
+```
