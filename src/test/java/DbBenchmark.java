@@ -19,19 +19,14 @@
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
-import com.google.common.cache.RemovalListener;
-import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.ImmutableList;
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.CharStreams;
 import com.google.common.io.Files;
 import org.ebaysf.bluewhale.Cache;
-import org.ebaysf.bluewhale.CacheImpl;
-import org.ebaysf.bluewhale.configurable.ConfigurationBuilder;
+import org.ebaysf.bluewhale.configurable.CacheBuilder;
 import org.ebaysf.bluewhale.document.BinDocumentFactories;
-import org.ebaysf.bluewhale.segment.Segment;
 import org.ebaysf.bluewhale.serialization.Serializers;
-import org.ebaysf.bluewhale.storage.BinJournal;
 import org.iq80.leveldb.DBFactory;
 import org.iq80.leveldb.Options;
 import org.iq80.leveldb.WriteOptions;
@@ -71,8 +66,7 @@ public class DbBenchmark
 
     static {
         try {
-            cache_ = new CacheImpl<byte[], byte[]>(
-                    ConfigurationBuilder.builder(Serializers.BYTE_ARRAY_SERIALIZER, Serializers.BYTE_ARRAY_SERIALIZER)
+            cache_ = CacheBuilder.builder(Serializers.BYTE_ARRAY_SERIALIZER, Serializers.BYTE_ARRAY_SERIALIZER)
                             .setLocal(_dir)
                             .setEventBus(_eventBus)
                             .setExecutor(_executor)
@@ -82,16 +76,8 @@ public class DbBenchmark
                             .setJournalLength(1 << 29)
                             .setMaxJournals(8)
                             .setMaxMemoryMappedJournals(2)
-                            .setCleanUpOnExit(true)
-                            .build(),
-                    new RemovalListener<byte[], byte[]>() {
-                        @Override
-                        public void onRemoval(RemovalNotification<byte[], byte[]> notification) {
-
-                        }
-                    },
-                    Collections.<Segment>emptyList(),
-                    Collections.<BinJournal>emptyList());
+                            .setPersistent(false)
+                            .build();
         }
         catch (IOException ex) {
             ex.printStackTrace();

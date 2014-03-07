@@ -1,14 +1,21 @@
 package org.ebaysf.bluewhale.persistence;
 
+import com.google.common.cache.RemovalListener;
+import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.Range;
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.Files;
 import com.google.gson.Gson;
 import org.brettw.SparseBitSet;
+import org.ebaysf.bluewhale.Cache;
+import org.ebaysf.bluewhale.CacheImpl;
+import org.ebaysf.bluewhale.configurable.CacheBuilder;
 import org.ebaysf.bluewhale.configurable.Configuration;
+import org.ebaysf.bluewhale.document.BinDocumentFactories;
 import org.ebaysf.bluewhale.segment.LeafSegment;
 import org.ebaysf.bluewhale.segment.Segment;
 import org.ebaysf.bluewhale.segment.SegmentsManager;
+import org.ebaysf.bluewhale.serialization.Serializers;
 import org.ebaysf.bluewhale.storage.BinStorage;
 import org.javatuples.Pair;
 import org.junit.Assert;
@@ -17,6 +24,8 @@ import org.mockito.Mockito;
 
 import java.io.File;
 import java.nio.ByteBuffer;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -114,5 +123,58 @@ public class GsonsTest {
         Assert.assertEquals(origin.local(), parsed.local());
         Assert.assertEquals(origin.range(), parsed.range());
         Assert.assertEquals(origin.size(), parsed.size());
+    }
+
+    @Test
+    public void testGsonWithCache() throws Exception {
+
+        final File temp = Files.createTempDir();
+
+        final Cache<String, String> cache = CacheBuilder.builder(Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
+                        .setLocal(temp)
+                        .setEventBus(new EventBus())
+                        .setExecutor(Executors.newCachedThreadPool())
+                        .setConcurrencyLevel(2)
+                        .setMaxSegmentDepth(2)
+                        .setBinDocumentFactory(BinDocumentFactories.RAW)
+                        .setJournalLength(1 << 20)
+                        .setMaxJournals(8)
+                        .setMaxMemoryMappedJournals(2)
+                        .build();
+
+        Assert.assertNotNull(cache);
+        Assert.assertNull(cache.getIfPresent("key"));
+        Assert.assertEquals("value", cache.get("key", new Callable<String>() {
+
+            public @Override String call() throws Exception {
+                return "value";
+            }
+        }));
+        Assert.assertEquals("value", cache.getIfPresent("key"));
+
+        final Gson gson = Gsons.GSON;
+        Assert.assertNotNull(gson);
+
+        final String str = gson.toJson(cache);
+        Assert.assertNotNull(str);
+
+        System.out.println(str);
+
+        final PersistedCache parsed = gson.fromJson(str, PersistedCache.class);
+        Assert.assertNotNull(parsed);
+        Assert.assertNotNull(parsed.getConfiguration());
+        Assert.assertNotNull(parsed.getPersistedSegments());
+        Assert.assertNotNull(parsed.getPersistedJournals());
+
+        final Cache<String, String> revived = new CacheImpl<String, String>(cache.getConfiguration(), new RemovalListener<String, String>() {
+                public @Override void onRemoval(RemovalNotification<String, String> notification) {
+
+                }
+            },
+            parsed.getPersistedSegments(),
+            parsed.getPersistedJournals());
+
+        Assert.assertNotNull(revived);
+        Assert.assertEquals("value", cache.getIfPresent("key"));
     }
 }

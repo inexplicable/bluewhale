@@ -5,7 +5,8 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import org.ebaysf.bluewhale.configurable.ConfigurationBuilder;
+import org.ebaysf.bluewhale.configurable.CacheBuilder;
+import org.ebaysf.bluewhale.configurable.EvictionStrategy;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.document.BinDocumentFactories;
 import org.ebaysf.bluewhale.document.BinDocumentRaw;
@@ -41,17 +42,10 @@ public class BinStorageTest {
 
         final File temp = Files.createTempDir();
 
-        final BinStorage storage = new BinStorageImpl(
-                ConfigurationBuilder.builder(Serializers.BYTE_ARRAY_SERIALIZER, Serializers.BYTE_ARRAY_SERIALIZER)
-                    .setLocal(temp)
-                    .setEventBus(_eventBus)
-                    .setExecutor(_executor)
-                    .setBinDocumentFactory(BinDocumentFactories.RAW)
-                    .setJournalLength(1 << 20)
-                    .setMaxJournals(8)
-                    .setMaxMemoryMappedJournals(2)
-                    .setCleanUpOnExit(true)
-                    .build(),
+        final BinStorage storage = new BinStorageImpl(new CacheBuilder.ConfigurationImpl(temp,
+                    Serializers.BYTE_ARRAY_SERIALIZER, Serializers.BYTE_ARRAY_SERIALIZER, 1, 1, 1,
+                    BinDocumentFactories.RAW, 1 << 20, 8, 2, 0.1f, 0.25f, null, false,
+                    EvictionStrategy.SILENCE, _eventBus, _executor),
                 Collections.<BinJournal>emptyList(),
                 Mockito.mock(UsageTrack.class));
 
@@ -72,17 +66,10 @@ public class BinStorageTest {
 
         final File temp = Files.createTempDir();
 
-        final BinStorage storage = new BinStorageImpl(
-                ConfigurationBuilder.builder(Serializers.BYTE_ARRAY_SERIALIZER, Serializers.BYTE_ARRAY_SERIALIZER)
-                        .setLocal(temp)
-                        .setEventBus(_eventBus)
-                        .setExecutor(_executor)
-                        .setBinDocumentFactory(BinDocumentFactories.RAW)
-                        .setJournalLength(1 << 20)
-                        .setMaxJournals(8)
-                        .setMaxMemoryMappedJournals(2)
-                        .setCleanUpOnExit(true)
-                        .build(),
+        final BinStorage storage = new BinStorageImpl(new CacheBuilder.ConfigurationImpl(temp,
+                    Serializers.BYTE_ARRAY_SERIALIZER, Serializers.BYTE_ARRAY_SERIALIZER, 1, 1, 1,
+                    BinDocumentFactories.RAW, 1 << 20, 8, 2, 0.1f, 0.25f, null, false,
+                    EvictionStrategy.SILENCE, _eventBus, _executor),
                 Collections.<BinJournal>emptyList(),
                 Mockito.mock(UsageTrack.class));
 
@@ -103,17 +90,10 @@ public class BinStorageTest {
 
         final File temp = Files.createTempDir();
 
-        final BinStorageImpl storage = new BinStorageImpl(
-                ConfigurationBuilder.builder(Serializers.BYTE_ARRAY_SERIALIZER, Serializers.BYTE_ARRAY_SERIALIZER)
-                        .setLocal(temp)
-                        .setEventBus(_eventBus)
-                        .setExecutor(_executor)
-                        .setBinDocumentFactory(BinDocumentFactories.RAW)
-                        .setJournalLength(1 << 20)
-                        .setMaxJournals(8)
-                        .setMaxMemoryMappedJournals(2)
-                        .setCleanUpOnExit(true)
-                        .build(),
+        final BinStorageImpl storage = new BinStorageImpl(new CacheBuilder.ConfigurationImpl(temp,
+                    Serializers.BYTE_ARRAY_SERIALIZER, Serializers.BYTE_ARRAY_SERIALIZER, 1, 1, 1,
+                    BinDocumentFactories.RAW, 1 << 20, 8, 2, 0.1f, 0.25f, null, false,
+                    EvictionStrategy.SILENCE, _eventBus, _executor),
                 Collections.<BinJournal>emptyList(),
                 Mockito.mock(UsageTrack.class));
 

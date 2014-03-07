@@ -50,9 +50,14 @@ public class JournalsManager {
 
     public Pair<File, ByteBuffer> newBuffer() throws IOException {
 
-        final File next = Files.newJournalFile(_configuration.getLocal(), _configuration.isCleanUpOnExit());
+        final File next = Files.newJournalFile(_configuration.getLocal(), !_configuration.isPersistent());
 
         return new Pair<File, ByteBuffer>(next, com.google.common.io.Files.map(next, FileChannel.MapMode.READ_WRITE, _configuration.getJournalLength()));
+    }
+
+    public Pair<File, ByteBuffer> loadBuffer(final File source) throws IOException {
+
+        return new Pair<File, ByteBuffer>(source, com.google.common.io.Files.map(source, FileChannel.MapMode.READ_ONLY, _configuration.getJournalLength()));
     }
 
     public void freeUpBuffer(final ByteBuffer buffer){

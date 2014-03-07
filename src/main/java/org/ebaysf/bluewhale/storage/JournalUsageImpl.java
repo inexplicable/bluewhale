@@ -15,11 +15,15 @@ public class JournalUsageImpl implements JournalUsage {
 
         _lastModified = lastModified;
         _documents = documents;
-        _alives = new SparseBitSet(documents);
+        _alives = new SparseBitSet(Math.max(documents, 1024));
     }
 
     public @Override long getLastModified() {
         return _lastModified;
+    }
+
+    public @Override int getDocuments(){
+        return _documents;
     }
 
     public @Override boolean isAllDead() {

@@ -9,6 +9,8 @@ public interface JournalUsage {
 
     long getLastModified();
 
+    int getDocuments();
+
     boolean isAllDead();
 
     boolean isUsageRatioAbove(final float usageRatioAtLeast);

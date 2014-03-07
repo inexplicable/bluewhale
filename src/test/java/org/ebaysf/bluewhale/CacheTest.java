@@ -7,18 +7,15 @@ import com.google.common.collect.Lists;
 import com.google.common.eventbus.AsyncEventBus;
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.Files;
-import org.ebaysf.bluewhale.configurable.ConfigurationBuilder;
+import org.ebaysf.bluewhale.configurable.CacheBuilder;
 import org.ebaysf.bluewhale.document.BinDocumentFactories;
-import org.ebaysf.bluewhale.segment.Segment;
 import org.ebaysf.bluewhale.serialization.Serializers;
-import org.ebaysf.bluewhale.storage.BinJournal;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.*;
@@ -42,8 +39,7 @@ public class CacheTest {
         final File temp = Files.createTempDir();
         final EventBus eventBus = new EventBus();
 
-        final Cache<String, String> cache = new CacheImpl<String, String>(
-                ConfigurationBuilder.builder(Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
+        final Cache<String, String> cache = CacheBuilder.builder(Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
                         .setLocal(temp)
                         .setEventBus(eventBus)
                         .setExecutor(_executor)
@@ -53,16 +49,8 @@ public class CacheTest {
                         .setJournalLength(1 << 20)
                         .setMaxJournals(8)
                         .setMaxMemoryMappedJournals(2)
-                        .setCleanUpOnExit(true)
-                        .build(),
-                new RemovalListener<String, String>() {
-                    @Override
-                    public void onRemoval(RemovalNotification<String, String> notification) {
-
-                    }
-                },
-                Collections.<Segment>emptyList(),
-                Collections.<BinJournal>emptyList());
+                        .setPersistent(false)
+                        .build();
 
         Assert.assertNotNull(cache);
         Assert.assertNull(cache.getIfPresent("key"));
@@ -81,28 +69,25 @@ public class CacheTest {
         final File temp = Files.createTempDir();
         final EventBus eventBus = new EventBus();
 
-        final Cache<String, String> cache = new CacheImpl<String, String>(
-                ConfigurationBuilder.builder(Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
-                        .setLocal(temp)
-                        .setEventBus(eventBus)
-                        .setExecutor(_executor)
-                        .setConcurrencyLevel(2)
-                        .setMaxSegmentDepth(2)
-                        .setBinDocumentFactory(BinDocumentFactories.RAW)
-                        .setJournalLength(1 << 20)
-                        .setMaxJournals(8)
-                        .setMaxMemoryMappedJournals(2)
-                        .setCleanUpOnExit(true)
-                        .build(),
-                new RemovalListener<String, String>() {
+        final Cache<String, String> cache = CacheBuilder.builder(Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
+                .setLocal(temp)
+                .setEventBus(eventBus)
+                .setExecutor(_executor)
+                .setConcurrencyLevel(2)
+                .setMaxSegmentDepth(2)
+                .setBinDocumentFactory(BinDocumentFactories.RAW)
+                .setJournalLength(1 << 20)
+                .setMaxJournals(8)
+                .setMaxMemoryMappedJournals(2)
+                .setPersistent(false)
+                .setRemovalListener(new RemovalListener<String, String>() {
                     @Override
                     public void onRemoval(RemovalNotification<String, String> notification) {
 
                         System.out.println(notification);
                     }
-                },
-                Collections.<Segment>emptyList(),
-                Collections.<BinJournal>emptyList());
+                })
+                .build();
 
         Assert.assertNotNull(cache);
         Assert.assertNull(cache.getIfPresent("key"));
@@ -130,8 +115,7 @@ public class CacheTest {
         final File temp = Files.createTempDir();
         final EventBus eventBus = new AsyncEventBus(_executor);
 
-        final Cache<String, String> cache = new CacheImpl<String, String>(
-                ConfigurationBuilder.builder(Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
+        final Cache<String, String> cache = CacheBuilder.builder(Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
                         .setLocal(temp)
                         .setEventBus(eventBus)
                         .setExecutor(_executor)
@@ -141,16 +125,8 @@ public class CacheTest {
                         .setJournalLength(1 << 20)
                         .setMaxJournals(8)
                         .setMaxMemoryMappedJournals(2)
-                        .setCleanUpOnExit(true)
-                        .build(),
-                new RemovalListener<String, String>() {
-                    @Override
-                    public void onRemoval(RemovalNotification<String, String> notification) {
-
-                    }
-                },
-                Collections.<Segment>emptyList(),
-                Collections.<BinJournal>emptyList());
+                        .setPersistent(false)
+                        .build();
 
         final String[] candidates = new String[1000];
         for(int i = 0; i < candidates.length; i += 1){
@@ -194,8 +170,7 @@ public class CacheTest {
         final AtomicLong durations = new AtomicLong(0L);
         final ExecutorService concurrency = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() / 2 + 1);
 
-        final Cache<String, String> cache = new CacheImpl<String, String>(
-                ConfigurationBuilder.builder(Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
+        final Cache<String, String> cache = CacheBuilder.builder(Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
                         .setLocal(temp)
                         .setEventBus(eventBus)
                         .setExecutor(_executor)
@@ -205,16 +180,8 @@ public class CacheTest {
                         .setJournalLength(1 << 20)
                         .setMaxJournals(8)
                         .setMaxMemoryMappedJournals(2)
-                        .setCleanUpOnExit(true)
-                        .build(),
-                new RemovalListener<String, String>() {
-                    @Override
-                    public void onRemoval(RemovalNotification<String, String> notification) {
-
-                    }
-                },
-                Collections.<Segment>emptyList(),
-                Collections.<BinJournal>emptyList());
+                        .setPersistent(true)
+                        .build();
 
         final String[] candidates = new String[10000];
         for(int i = 0; i < candidates.length; i += 1){

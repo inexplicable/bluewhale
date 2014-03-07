@@ -2,12 +2,10 @@ package org.ebaysf.bluewhale.event;
 
 import org.ebaysf.bluewhale.segment.Segment;
 
-import java.util.EventObject;
-
 /**
  * Created by huzhou on 3/1/14.
  */
-public class PostSegmentSplitEvent extends EventObject {
+public class PostSegmentSplitEvent extends PersistenceRequiredEvent {
 
     public PostSegmentSplitEvent(final Object source) {
 

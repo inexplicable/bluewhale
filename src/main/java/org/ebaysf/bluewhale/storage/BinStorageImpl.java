@@ -10,6 +10,7 @@ import org.brettw.SparseBitSet;
 import org.ebaysf.bluewhale.configurable.Configuration;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.document.BinDocumentFactory;
+import org.ebaysf.bluewhale.event.PersistenceRequiredEvent;
 import org.ebaysf.bluewhale.event.PostExpansionEvent;
 import org.ebaysf.bluewhale.event.PostInvestigationEvent;
 import org.javatuples.Pair;
@@ -40,19 +41,19 @@ public class BinStorageImpl implements BinStorage {
 
     private static final Logger LOG = Logger.getLogger(BinStorageImpl.class.getName());
 
-    private final Configuration _configuration;
-    private final EventBus _eventBus;
-    private final ExecutorService _executor;
-    private final UsageTrack _usageTrack;
-    private final ReentrantLock _lock;
+    private final transient Configuration _configuration;
+    private final transient EventBus _eventBus;
+    private final transient ExecutorService _executor;
+    private final transient UsageTrack _usageTrack;
+    private final transient ReentrantLock _lock;
 
-    protected final JournalsManager _manager;
-    protected final BinDocumentFactory _factory;
+    protected final transient JournalsManager _manager;
+    protected final transient BinDocumentFactory _factory;
 
-    protected volatile BinJournal _journaling;
+    protected volatile transient BinJournal _journaling;
     protected volatile RangeMap<Integer, BinJournal> _navigableJournals;
-    protected volatile RangeSet<Integer> _dangerousJournals;
-    protected volatile Future<?> _openInvestigation;
+    protected volatile transient RangeSet<Integer> _dangerousJournals;
+    protected volatile transient Future<?> _openInvestigation;
 
     public BinStorageImpl(final Configuration configuration,
                           final List<BinJournal> loadings,
@@ -74,7 +75,6 @@ public class BinStorageImpl implements BinStorage {
         _lock = new ReentrantLock(true);
 
         warmUp(loadings);
-        acceptWritable(nextWritable());
     }
 
     public @Override File local() {
@@ -174,7 +174,7 @@ public class BinStorageImpl implements BinStorage {
         return orderedByLastModified.iterator();
     }
 
-    protected RangeMap<Integer, BinJournal> warmUp(final List<BinJournal> loadings) {
+    protected void warmUp(final List<BinJournal> loadings) throws IOException {
 
         final ImmutableRangeMap.Builder<Integer, BinJournal> builder = ImmutableRangeMap.builder();
 
@@ -182,11 +182,36 @@ public class BinStorageImpl implements BinStorage {
 
             if(!cold.currentState().isEvicted()){
 
-                builder.put(cold.range(), cold);
+                BinJournal warm = null;
+                try {
+                    if(cold.currentState().isMemoryMapped()){
+
+                        final FileChannelBinJournal immutable = new FileChannelBinJournal(cold.local(),
+                                cold.range(), _manager, cold.usage(), _factory, cold.getJournalLength(), cold.getDocumentSize(), -1);
+                        warm = immutable;
+                    }
+                    else{
+                        final ByteBufferBinJournal immutable = new ByteBufferBinJournal(cold.local(),
+                                cold.currentState(), cold.range(), _manager, cold.usage(), _factory, cold.getJournalLength(), _manager.loadBuffer(cold.local()).getValue1());
+                        immutable._size = cold.getDocumentSize();
+                        warm = immutable;
+                    }
+                }
+                catch (IOException e) {
+                    LOG.warning(Throwables.getStackTraceAsString(e));
+                }
+
+                if(warm != null){
+                    builder.put(warm.range(), warm);
+                }
             }
         }
 
-        return builder.build();
+        _navigableJournals = builder.build();
+
+        acceptWritable(nextWritable());
+
+        _eventBus.post(new PersistenceRequiredEvent(this));
     }
 
     protected WriterBinJournal nextWritable() throws IOException {
@@ -319,6 +344,7 @@ public class BinStorageImpl implements BinStorage {
 
         _navigableJournals = navigableBuilder.build();
         _dangerousJournals = dangerBuilder.build(); //rebuild dangerous journals set
+        _eventBus.post(new PersistenceRequiredEvent(this));
 
         if(_openInvestigation == null){
             //there're cannot be 2 open investigations at the same time, too much cost
@@ -449,6 +475,7 @@ public class BinStorageImpl implements BinStorage {
 
             _navigableJournals = navigableBuilder.build();
             _dangerousJournals = dangerousBuilder.build();
+            _eventBus.post(new PersistenceRequiredEvent(this));
 
         }
         catch(Exception ex){

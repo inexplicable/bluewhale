@@ -14,10 +14,8 @@ import org.ebaysf.bluewhale.command.PutAsInvalidate;
 import org.ebaysf.bluewhale.command.PutAsIs;
 import org.ebaysf.bluewhale.configurable.Configuration;
 import org.ebaysf.bluewhale.document.BinDocument;
-import org.ebaysf.bluewhale.event.PostInvalidateAllEvent;
-import org.ebaysf.bluewhale.event.PostSegmentSplitEvent;
-import org.ebaysf.bluewhale.event.RemovalNotificationEvent;
-import org.ebaysf.bluewhale.event.SegmentSplitEvent;
+import org.ebaysf.bluewhale.event.*;
+import org.ebaysf.bluewhale.persistence.Gsons;
 import org.ebaysf.bluewhale.segment.Segment;
 import org.ebaysf.bluewhale.segment.SegmentsManager;
 import org.ebaysf.bluewhale.serialization.Serializer;
@@ -67,6 +65,11 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
 
         _navigableSegments = _manager.initSegments(
                 Objects.firstNonNull(coldSegments, Collections.<Segment>emptyList()), _storage);
+    }
+
+    public @Override Configuration getConfiguration() {
+
+        return _configuration;
     }
 
     public @Override Serializer<K> getKeySerializer() {
@@ -246,6 +249,15 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
 
         _statsCounter.recordEviction();
         _removalListener.onRemoval(new RemovalNotificationOverBuffer<K, V>(key, document, getValSerializer(), cause));
+    }
+
+    @Subscribe
+    public void onPersistenceRequired(final PersistenceRequiredEvent event) throws IOException {
+
+        if(_configuration.isPersistent()){
+            Gsons.persist(this);
+            LOG.info("[cache] cold persistence done");
+        }
     }
 
     public static int getSegmentCode(final int hashCode) {

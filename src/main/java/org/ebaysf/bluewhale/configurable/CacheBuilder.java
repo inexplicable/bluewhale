@@ -1,14 +1,27 @@
 package org.ebaysf.bluewhale.configurable;
 
 import com.google.common.base.Preconditions;
+import com.google.common.cache.RemovalListener;
+import com.google.common.cache.RemovalNotification;
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.Files;
+import org.ebaysf.bluewhale.Cache;
+import org.ebaysf.bluewhale.CacheImpl;
 import org.ebaysf.bluewhale.document.BinDocumentFactories;
 import org.ebaysf.bluewhale.document.BinDocumentFactory;
+import org.ebaysf.bluewhale.persistence.Gsons;
+import org.ebaysf.bluewhale.persistence.PersistedCache;
+import org.ebaysf.bluewhale.segment.Segment;
 import org.ebaysf.bluewhale.serialization.Serializer;
+import org.ebaysf.bluewhale.storage.BinJournal;
 import org.javatuples.Pair;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -16,10 +29,15 @@ import java.util.concurrent.TimeUnit;
 /**
  * Created by huzhou on 3/6/14.
  */
-public class ConfigurationBuilder implements Configuration {
+public class CacheBuilder<K, V> implements Configuration {
 
-    private final Serializer<?> _keySerializer;
-    private final Serializer<?> _valSerializer;
+    private final Serializer<K> _keySerializer;
+    private final Serializer<V> _valSerializer;
+    private RemovalListener<K, V> _removalListener = new RemovalListener<K, V>() {
+        public @Override void onRemoval(RemovalNotification<K, V> notification) {
+
+        }
+    };
 
     private File _local;
     private int _concurrencyLevel = 3;
@@ -33,19 +51,23 @@ public class ConfigurationBuilder implements Configuration {
     private float _leastJournalUsageRatio = 0.1f;
     private float _dangerousJournalsRatio = 0.25f;//1/4
     private Pair<Long, TimeUnit> _ttl = null;
-    private boolean _cleanUpOnExit = true;//clean up
+    private boolean _persistent = false;//clean up
     private EvictionStrategy _evictionStrategy = EvictionStrategy.SILENCE;
     private EventBus _eventBus = new EventBus();//synchronous
     private ExecutorService _executor = Executors.newCachedThreadPool();
 
-    public static <K, V> ConfigurationBuilder builder(final Serializer<K> keySerializer,
-                                                      final Serializer<V> valSerializer){
+    private List<Segment> _coldSegments = Collections.emptyList();
+    private List<BinJournal> _coldJournals = Collections.emptyList();
 
-        return new <K, V>ConfigurationBuilder(keySerializer, valSerializer);
+    public static <K, V> CacheBuilder builder(final Serializer<K> keySerializer,
+                                              final Serializer<V> valSerializer) {
+
+        return new CacheBuilder<K, V>(keySerializer, valSerializer);
     }
 
-    private <K, V> ConfigurationBuilder(final Serializer<K> keySerializer,
-                                        final Serializer<V> valSerializer){
+    private CacheBuilder(final Serializer<K> keySerializer,
+                         final Serializer<V> valSerializer) {
+
         _keySerializer = keySerializer;
         _valSerializer = valSerializer;
     }
@@ -57,24 +79,51 @@ public class ConfigurationBuilder implements Configuration {
         return _local;
     }
 
-    public ConfigurationBuilder setLocal(final File local){
+    public CacheBuilder<K, V> setLocal(final File local){
         _local = Preconditions.checkNotNull(local);
         return this;
     }
 
-    public @Override <K> Serializer<K> getKeySerializer(){
-        return (Serializer<K>)_keySerializer;
+    public CacheBuilder<K, V> setCold(final File source) throws FileNotFoundException {
+
+        final PersistedCache<K, V> cold = Gsons.GSON.fromJson(new FileReader(source), PersistedCache.class);
+        final Configuration configuration = cold.getConfiguration();
+
+        setConcurrencyLevel(configuration.getConcurrencyLevel())
+                .setMaxSegmentDepth(configuration.getMaxSegmentDepth())
+                .setMaxPathDepth(configuration.getMaxPathDepth())
+                .setJournalLength(configuration.getJournalLength())
+                .setMaxJournals(configuration.getMaxJournals())
+                .setMaxMemoryMappedJournals(configuration.getMaxMemoryMappedJournals())
+                .setLeastJournalUsageRatio(configuration.getLeastJournalUsageRatio())
+                .setDangerousJournalsRatio(configuration.getDangerousJournalsRatio())
+                .setTTL(configuration.getTTL())
+                .setPersistent(true);
+
+        _coldSegments = Preconditions.checkNotNull(cold.getPersistedSegments());
+        _coldJournals = Preconditions.checkNotNull(cold.getPersistedJournals());
+
+        return this;
     }
 
-    public @Override <V> Serializer<V> getValSerializer(){
-        return (Serializer<V>)_valSerializer;
+    public @Override Serializer<K> getKeySerializer(){
+        return _keySerializer;
+    }
+
+    public @Override Serializer<V> getValSerializer(){
+        return _valSerializer;
+    }
+
+    public CacheBuilder<K, V> setRemovalListener(final RemovalListener<K, V> removalListener){
+        _removalListener = Preconditions.checkNotNull(removalListener);
+        return this;
     }
 
     public @Override int getConcurrencyLevel(){
         return _concurrencyLevel;
     }
 
-    public ConfigurationBuilder setConcurrencyLevel(final int concurrencyLevel){
+    public CacheBuilder<K, V> setConcurrencyLevel(final int concurrencyLevel){
         Preconditions.checkArgument(concurrencyLevel > 0 & concurrencyLevel < 16);
         _concurrencyLevel = concurrencyLevel;
         return this;
@@ -84,7 +133,7 @@ public class ConfigurationBuilder implements Configuration {
         return _maxSegmentDepth;
     }
 
-    public ConfigurationBuilder setMaxSegmentDepth(final int maxSegmentDepth){
+    public CacheBuilder<K, V> setMaxSegmentDepth(final int maxSegmentDepth){
         Preconditions.checkArgument(maxSegmentDepth > 0 && maxSegmentDepth < 16);
         _maxSegmentDepth = maxSegmentDepth;
         return this;
@@ -94,7 +143,7 @@ public class ConfigurationBuilder implements Configuration {
         return _maxPathDepth;
     }
 
-    public ConfigurationBuilder setMaxPathDepth(final int maxPathDepth){
+    public CacheBuilder<K, V> setMaxPathDepth(final int maxPathDepth){
         Preconditions.checkArgument(maxPathDepth > 0);
         _maxPathDepth = maxPathDepth;
         return this;
@@ -104,7 +153,7 @@ public class ConfigurationBuilder implements Configuration {
         return _factory;
     }
 
-    public ConfigurationBuilder setBinDocumentFactory(final BinDocumentFactory factory){
+    public CacheBuilder<K, V> setBinDocumentFactory(final BinDocumentFactory factory){
         _factory = Preconditions.checkNotNull(factory);
         return this;
     }
@@ -113,7 +162,7 @@ public class ConfigurationBuilder implements Configuration {
         return _journalLength;
     }
 
-    public ConfigurationBuilder setJournalLength(final int journalLength){
+    public CacheBuilder<K, V> setJournalLength(final int journalLength){
         Preconditions.checkArgument(journalLength > 0 && journalLength < Integer.MAX_VALUE);
         _journalLength = journalLength;
         return this;
@@ -123,7 +172,7 @@ public class ConfigurationBuilder implements Configuration {
         return _maxJournals;
     }
 
-    public ConfigurationBuilder setMaxJournals(final int maxJournals){
+    public CacheBuilder<K, V> setMaxJournals(final int maxJournals){
         Preconditions.checkArgument(maxJournals > 1 && maxJournals < Integer.MAX_VALUE);
         _maxJournals = maxJournals;
         return this;
@@ -133,7 +182,7 @@ public class ConfigurationBuilder implements Configuration {
         return _maxMemoryMappedJournals;
     }
 
-    public ConfigurationBuilder setMaxMemoryMappedJournals(final int maxMemoryMappedJournals){
+    public CacheBuilder<K, V> setMaxMemoryMappedJournals(final int maxMemoryMappedJournals){
         Preconditions.checkArgument(maxMemoryMappedJournals > 1 && maxMemoryMappedJournals < _maxJournals);
         _maxMemoryMappedJournals = maxMemoryMappedJournals;
         return this;
@@ -143,7 +192,7 @@ public class ConfigurationBuilder implements Configuration {
         return _leastJournalUsageRatio;
     }
 
-    public ConfigurationBuilder setLeastJournalUsageRatio(final float leastJournalUsageRatio){
+    public CacheBuilder<K, V> setLeastJournalUsageRatio(final float leastJournalUsageRatio){
         Preconditions.checkArgument(leastJournalUsageRatio >= 0f && leastJournalUsageRatio < 0.5f);
         _leastJournalUsageRatio = leastJournalUsageRatio;
         return this;
@@ -153,7 +202,7 @@ public class ConfigurationBuilder implements Configuration {
         return _dangerousJournalsRatio;
     }
 
-    public ConfigurationBuilder setDangerousJournalsRatio(final float dangerousJournalsRatio){
+    public CacheBuilder<K, V> setDangerousJournalsRatio(final float dangerousJournalsRatio){
         Preconditions.checkArgument(dangerousJournalsRatio > 0f && dangerousJournalsRatio < 0.5f);
         _dangerousJournalsRatio = dangerousJournalsRatio;
         return this;
@@ -163,17 +212,17 @@ public class ConfigurationBuilder implements Configuration {
         return _ttl;
     }
 
-    public ConfigurationBuilder setTTL(final Pair<Long, TimeUnit> ttl){
+    public CacheBuilder<K, V> setTTL(final Pair<Long, TimeUnit> ttl){
         _ttl = Preconditions.checkNotNull(ttl);
         return this;
     }
 
-    public @Override boolean isCleanUpOnExit(){
-        return _cleanUpOnExit;
+    public @Override boolean isPersistent(){
+        return _persistent;
     }
 
-    public ConfigurationBuilder setCleanUpOnExit(final boolean cleanUpOnExit){
-        _cleanUpOnExit = cleanUpOnExit;
+    public CacheBuilder<K, V> setPersistent(final boolean persistent){
+        _persistent = persistent;
         return this;
     }
 
@@ -181,7 +230,7 @@ public class ConfigurationBuilder implements Configuration {
         return _evictionStrategy;
     }
 
-    public ConfigurationBuilder setEvictionStrategy(final EvictionStrategy evictionStrategy){
+    public CacheBuilder<K, V> setEvictionStrategy(final EvictionStrategy evictionStrategy){
         _evictionStrategy = Preconditions.checkNotNull(evictionStrategy);
         return this;
     }
@@ -190,7 +239,7 @@ public class ConfigurationBuilder implements Configuration {
         return _eventBus;
     }
 
-    public ConfigurationBuilder setEventBus(final EventBus eventBus){
+    public CacheBuilder<K, V> setEventBus(final EventBus eventBus){
         _eventBus = Preconditions.checkNotNull(eventBus);
         return this;
     }
@@ -199,13 +248,14 @@ public class ConfigurationBuilder implements Configuration {
         return _executor;
     }
 
-    public ConfigurationBuilder setExecutor(final ExecutorService executor){
+    public CacheBuilder<K, V> setExecutor(final ExecutorService executor){
         _executor = Preconditions.checkNotNull(executor);
         return this;
     }
 
-    public Configuration build(){
-        return new ConfigurationImpl(getLocal(),
+    public Cache<K, V> build() throws IOException {
+
+        final Configuration configuration = new ConfigurationImpl(getLocal(),
                 getKeySerializer(),
                 getValSerializer(),
                 getConcurrencyLevel(),
@@ -218,13 +268,15 @@ public class ConfigurationBuilder implements Configuration {
                 getLeastJournalUsageRatio(),
                 getDangerousJournalsRatio(),
                 getTTL(),
-                isCleanUpOnExit(),
+                isPersistent(),
                 getEvictionStrategy(),
                 getEventBus(),
                 getExecutor());
+
+        return new CacheImpl<K, V>(configuration, _removalListener, _coldSegments, _coldJournals);
     }
 
-    protected static class ConfigurationImpl implements Configuration {
+    public static class ConfigurationImpl implements Configuration {
 
         private final File _local;
         private final transient Serializer<?> _keySerializer;
@@ -241,7 +293,7 @@ public class ConfigurationBuilder implements Configuration {
         private final float _leastJournalUsageRatio;
         private final float _dangerousJournalsRatio;
         private final Pair<Long, TimeUnit> _ttl;
-        private final boolean _cleanUpOnExit;//clean up
+        private final boolean _persistent;
         private final transient EvictionStrategy _evictionStrategy;
         private final transient EventBus _eventBus;//synchronous
         private final transient ExecutorService _executor;
@@ -259,7 +311,7 @@ public class ConfigurationBuilder implements Configuration {
                                         final float leastJournalUsageRatio,
                                         final float dangerousJournalsRatio,
                                         final Pair<Long, TimeUnit> ttl,
-                                        final boolean cleanUpOnExit,
+                                        final boolean persistent,
                                         final EvictionStrategy evictionStrategy,
                                         final EventBus eventBus,
                                         final ExecutorService executor) {
@@ -278,7 +330,7 @@ public class ConfigurationBuilder implements Configuration {
             _leastJournalUsageRatio = leastJournalUsageRatio;
             _dangerousJournalsRatio = dangerousJournalsRatio;
             _ttl = ttl;
-            _cleanUpOnExit = cleanUpOnExit;
+            _persistent = persistent;
             _evictionStrategy = evictionStrategy;
             _eventBus = eventBus;
             _executor = executor;
@@ -336,8 +388,8 @@ public class ConfigurationBuilder implements Configuration {
             return _ttl;
         }
 
-        public @Override boolean isCleanUpOnExit(){
-            return _cleanUpOnExit;
+        public @Override boolean isPersistent(){
+            return _persistent;
         }
 
         public @Override EvictionStrategy getEvictionStrategy(){
@@ -351,27 +403,6 @@ public class ConfigurationBuilder implements Configuration {
         public @Override ExecutorService getExecutor(){
             return _executor;
         }
-//
-//        public @Override String toString(){
-//
-//            final StringBuilder strBldr = new StringBuilder();
-//
-//            strBldr.append('{');
-//            strBldr.append("\"local\":\"").append(_local.getAbsolutePath()).append("\",");
-//            strBldr.append("\"concurrencyLevel\":").append(_concurrencyLevel).append(",");
-//            strBldr.append("\"maxSegmentDepth\":").append(_maxSegmentDepth).append(",");
-//            strBldr.append("\"maxPathDepth\":").append(_maxPathDepth).append(",");
-//            strBldr.append("\"journalLength\":").append(_journalLength).append(",");
-//            strBldr.append("\"maxJournals\":").append(_maxJournals).append(",");
-//            strBldr.append("\"maxMemoryMappedJournals\":").append(_maxMemoryMappedJournals).append(",");
-//            strBldr.append("\"leastJournalUsageRatio\":").append(_leastJournalUsageRatio).append(",");
-//            strBldr.append("\"dangerousJournalsRatio\":").append(_dangerousJournalsRatio).append(",");
-//            strBldr.append("\"ttl\":\"").append(_ttl != null ? _ttl.getValue1().toNanos(_ttl.getValue0().longValue())).append("ns\"");
-//            strBldr.append("\"cleanUpOnExit\":").append(_cleanUpOnExit).append(",");
-//            strBldr.append('}');
-//
-//            return strBldr.toString();
-//        }
     }
 }
 

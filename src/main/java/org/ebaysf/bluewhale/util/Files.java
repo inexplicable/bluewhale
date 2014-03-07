@@ -19,12 +19,12 @@ public class Files {
 
     private static final Random _random = new Random(System.currentTimeMillis());
     
-    public static File newCacheDir(final File dir) throws IOException {
-    	final File cacheDir = new File(dir, 
-    			new StringBuilder().append(System.currentTimeMillis()).append('-').append(_random.nextInt()).append("-bluewhale").toString());
-    	Preconditions.checkState(!cacheDir.exists());
-    	cacheDir.mkdir();
-    	return cacheDir;
+    public static File newCacheFile(final File dir) throws IOException {
+    	final File cacheFile = new File(dir,
+    			new StringBuilder().append(System.currentTimeMillis()).append('-').append(_random.nextInt()).append(".cold").toString());
+
+        cacheFile.createNewFile();
+        return cacheFile;
     }
 
     public static File newSegmentFile(final File dir, final boolean deleteOnExit) throws IOException {

@@ -40,7 +40,7 @@ public interface Configuration {
 
     Pair<Long, TimeUnit> getTTL();
 
-    boolean isCleanUpOnExit();
+    boolean isPersistent();
 
     EvictionStrategy getEvictionStrategy();
 
