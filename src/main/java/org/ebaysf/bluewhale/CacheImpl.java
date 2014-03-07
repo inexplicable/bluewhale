@@ -2,11 +2,7 @@ package org.ebaysf.bluewhale;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import com.google.common.cache.CacheStats;
-import com.google.common.cache.RemovalCause;
-import com.google.common.cache.RemovalListener;
-import com.google.common.cache.RemovalNotificationOverBuffer;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.cache.*;
 import com.google.common.collect.ImmutableRangeMap;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
@@ -35,20 +31,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 
 /**
  * Created by huzhou on 2/28/14.
  */
-public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
+public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>, UsageTrack {
 
     private static final Logger LOG = Logger.getLogger(CacheImpl.class.getName());
 
     private final Configuration _configuration;
     private final SegmentsManager _manager;
     private final BinStorage _storage;
+    private final StatsCounter _statsCounter;
 
     private final RemovalListener<K, V> _removalListener;
 
@@ -63,6 +59,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
 
         _manager = new SegmentsManager(_configuration);
         _storage = new BinStorageImpl(_configuration, loadings, this);
+        _statsCounter = new SimpleStatsCounter();
 
         _configuration.getEventBus().register(this);
 
@@ -88,7 +85,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         final Segment zone = route(segmentCode);
 
         try {
-            return zone.get(new GetImpl(key, null, hashCode, false));
+            return zone.get(new GetImpl(key, null, hashCode, false, _statsCounter));
         }
         catch (Exception ex) {
             LOG.warning(Throwables.getStackTraceAsString(ex));
@@ -105,25 +102,12 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         final Segment zone = route(segmentCode);
 
         try {
-            return zone.get(new GetImpl(key, valueLoader, hashCode, true));
+            return zone.get(new GetImpl(key, valueLoader, hashCode, true, _statsCounter));
         }
         catch (Exception ex) {
             LOG.warning(Throwables.getStackTraceAsString(ex));
             return null;
         }
-    }
-
-    public @Override ImmutableMap<K, V> getAllPresent(Iterable<?> keys) {
-
-        Preconditions.checkArgument(keys != null);
-
-        final ImmutableMap.Builder<K, V> builder = ImmutableMap.builder();
-
-        for(Object key : keys){
-            builder.put((K)key, getIfPresent(key));
-        }
-
-        return builder.build();
     }
 
     public @Override void put(K key, V value) {
@@ -142,16 +126,6 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         }
     }
 
-    public @Override void putAll(Map<? extends K, ? extends V> m) {
-
-        Preconditions.checkArgument(m != null);
-
-        for(Map.Entry<? extends K, ? extends V> entry : m.entrySet()){
-            put(entry.getKey(), entry.getValue());
-        }
-
-    }
-
     public @Override void invalidate(Object key) {
 
         Preconditions.checkArgument(key != null);
@@ -165,16 +139,6 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
         }
         catch (Exception ex) {
             LOG.warning(Throwables.getStackTraceAsString(ex));
-        }
-    }
-
-    public @Override void invalidateAll(Iterable<?> keys) {
-
-        Preconditions.checkArgument(keys != null);
-
-        for(Object key : keys){
-
-            invalidate(key);
         }
     }
 
@@ -205,16 +169,8 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
     }
 
     public @Override CacheStats stats() {
-        return null;
-    }
 
-    public @Override ConcurrentMap<K, V> asMap() {
-
-        throw new UnsupportedOperationException("You don't really want a huge map like this :)");
-    }
-
-    public @Override void cleanUp() {
-
+        return _statsCounter.snapshot();
     }
 
     public @Override boolean using(final BinDocument document) {
@@ -285,6 +241,7 @@ public class CacheImpl <K, V> implements Cache<K, V>, UsageTrack {
 
         final K key = getKeySerializer().deserialize(document.getKey(), false);
 
+        _statsCounter.recordEviction();
         _removalListener.onRemoval(new RemovalNotificationOverBuffer<K, V>(key, document, getValSerializer(), cause));
     }
 

@@ -24,7 +24,6 @@ public interface Segment extends UsageTrack {
     int MASK_OF_OFFSET = -1 >>> 17;// least 15 bits
     int MAX_TOKENS_IN_ONE_SEGMENT = DoubleMath.roundToInt(Segment.SIZE / Long.SIZE * SPLIT_THRESHOLD, RoundingMode.FLOOR);// number of slots
     int MAX_SEGMENTS = 1 << 16;
-    int SHORTEN_PATH_THRESHOLD = 7;
 
     Configuration configuration();
 

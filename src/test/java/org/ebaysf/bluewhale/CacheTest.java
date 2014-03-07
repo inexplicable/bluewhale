@@ -295,5 +295,7 @@ public class CacheTest {
         System.out.printf("[concurrent] 10k sized cache, 100bytes key, 100bytes value, getIfPresent took: %dns\n", durations.getAndSet(0L) / candidates.length);
 
         concurrency.shutdown();
+
+        Assert.assertNotNull(cache.stats());
     }
 }

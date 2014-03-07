@@ -46,6 +46,8 @@ public interface BinStorage extends Iterable<BinJournal> {
      */
     BinJournal route(final long token);
 
+    boolean isDangerous(final long token);
+
     UsageTrack getUsageTrack();
 
     int getJournalLength();

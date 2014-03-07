@@ -50,6 +50,7 @@ public class BinStorageImpl implements BinStorage {
 
     protected volatile BinJournal _journaling;
     protected volatile RangeMap<Integer, BinJournal> _navigableJournals;
+    protected volatile RangeSet<Integer> _dangerousJournals;
     protected volatile Future<?> _openInvestigation;
 
     public BinStorageImpl(final Configuration configuration,
@@ -64,6 +65,7 @@ public class BinStorageImpl implements BinStorage {
         _usageTrack = Preconditions.checkNotNull(usageTrack);
 
         _navigableJournals = ImmutableRangeMap.of();
+        _dangerousJournals = ImmutableRangeSet.of();
 
         _manager = new JournalsManager(_configuration);
         _eventBus.register(this);
@@ -122,6 +124,13 @@ public class BinStorageImpl implements BinStorage {
         final int journalCode = (int)(token >> Integer.SIZE);
 
         return _navigableJournals.get(journalCode);
+    }
+
+    public @Override boolean isDangerous(final long token) {
+
+        final int journalCode = (int)(token >> Integer.SIZE);
+
+        return _dangerousJournals.contains(journalCode);
     }
 
     public @Override UsageTrack getUsageTrack() {
@@ -261,17 +270,28 @@ public class BinStorageImpl implements BinStorage {
         //determine if eviction must be triggered
         Preconditions.checkArgument(previous.currentState().isWritable());
 
-        final ImmutableRangeMap.Builder<Integer, BinJournal> builder = ImmutableRangeMap.builder();
+        final ImmutableRangeMap.Builder<Integer, BinJournal> navigableBuilder = ImmutableRangeMap.builder();
+        final ImmutableRangeSet.Builder<Integer> dangerBuilder = ImmutableRangeSet.builder();
 
         final Map<Range<Integer>, BinJournal> memoryMappedJournals = Maps.newLinkedHashMap();
         //iterate by last modified
+        int age = 0, numOfJournals = _navigableJournals.asMapOfRanges().size();
         for(BinJournal journal : this) {
+
+            if(numOfJournals == _configuration.getMaxJournals()){
+                age += 1;
+                if(age < _configuration.getDangerousJournalsRatio() * numOfJournals){
+                    dangerBuilder.add(journal.range());
+                }
+            }
+
             if(!Objects.equal(previous.range(), journal.range())){
+
                 if(journal.currentState().isMemoryMapped()){
                     memoryMappedJournals.put(journal.range(), journal);
                     continue;
                 }
-                builder.put(journal.range(), journal);
+                navigableBuilder.put(journal.range(), journal);
             }
         }
 
@@ -282,7 +302,7 @@ public class BinStorageImpl implements BinStorage {
 
             final Map.Entry<Range<Integer>, BinJournal> entry = it.next();
             try {
-                builder.put(entry.getKey(), downgrade(entry.getValue()));
+                navigableBuilder.put(entry.getKey(), downgrade(entry.getValue()));
             }
             catch (FileNotFoundException e) {
                 LOG.warning(Throwables.getStackTraceAsString(e));
@@ -291,12 +311,13 @@ public class BinStorageImpl implements BinStorage {
 
         //make previous writable readonly
         LOG.info("[storage] make previous writable immutable");
-        builder.put(previous.range(), immutable(previous));
+        navigableBuilder.put(previous.range(), immutable(previous));
 
         //keep writable in it
-        builder.put(_journaling.range(), _journaling);
+        navigableBuilder.put(_journaling.range(), _journaling);
 
-        _navigableJournals = builder.build();
+        _navigableJournals = navigableBuilder.build();
+        _dangerousJournals = dangerBuilder.build(); //rebuild dangerous journals set
 
         if(_openInvestigation == null){
             //there're cannot be 2 open investigations at the same time, too much cost

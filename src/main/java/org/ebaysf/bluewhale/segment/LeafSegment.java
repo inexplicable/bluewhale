@@ -3,6 +3,7 @@ package org.ebaysf.bluewhale.segment;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
+import com.google.common.cache.AbstractCache;
 import com.google.common.cache.RemovalCause;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Maps;
@@ -59,26 +60,31 @@ public class LeafSegment extends AbstractSegment {
         if(isLeaf()){
             final int offset = getOffset(get.getHashCode());
             final long token = _tokens.get(offset);
+            final AbstractCache.StatsCounter statsCounter = get.getStatsCounter();
 
             final V hit = getIfPresent(offset, token, get);
             if(hit != null){
+                statsCounter.recordHits(1);
                 return hit;
             }
             if(!get.loadIfAbsent() || get.getValueLoader() == null){
                 return null;
             }
 
+            statsCounter.recordMisses(1);
             final long beforeLoad = System.nanoTime();
             final Future<V> value = configuration().getExecutor().submit(get.<V>getValueLoader());
             try{
 
                 final V resolved = value.get();
-
                 put(new PutAsIs(get.getKey(), resolved, get.getHashCode()));
+
+                statsCounter.recordLoadSuccess(System.nanoTime() - beforeLoad);
                 //we do the blocking put, and then try calling get again
                 return resolved;
             }
             catch(InterruptedException e){
+                statsCounter.recordLoadException(System.nanoTime() - beforeLoad);
                 throw new ExecutionException(e);//value get failure
             }
         }
@@ -186,7 +192,7 @@ public class LeafSegment extends AbstractSegment {
         return false;
     }
 
-    protected <V> V getIfPresent(final int offset, final long token, final Get get) throws IOException{
+    protected <V> V getIfPresent(final int offset, long token, final Get get) throws IOException{
 
         final BinStorage storage = getStorage();
         final Serializer keySerializer = getKeySerializer();
@@ -194,17 +200,16 @@ public class LeafSegment extends AbstractSegment {
 
         int length = 0;
         try{
-            for(BinDocument doc = storage.read(token); doc != null; doc = storage.read(doc.getNext()), length += 1){
-
+            for(BinDocument doc = storage.read(token); doc != null; token = doc.getNext(), doc = storage.read(token), length += 1){
                 if(keySerializer.equals(key, doc.getKey())){
-
-                    return (V) (doc.isTombstone() ? null : getValSerializer().deserialize(doc.getValue(), doc.isCompressed()));
+                    _configuration.getEvictionStrategy().afterGet(this, storage, token, doc);
+                    return doc.isTombstone() ? null : (V)getValSerializer().deserialize(doc.getValue(), doc.isCompressed());
                 }
             }
             return null;
         }
         finally {
-            if(length >= SHORTEN_PATH_THRESHOLD){
+            if(length >= _configuration.getMaxPathDepth()){
                 configuration().getEventBus().post(new PathTooLongEvent(this, offset, _tokens.get(offset)));
             }
         }

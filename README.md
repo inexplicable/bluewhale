@@ -43,11 +43,11 @@ readseq      :     1.09180 micros/op;  101.3 MB/s
 * Eviction when size maxed out (LRW)
 * Compression and compaction of old journals
 * Files cleanup on close
+* Simple Stats
+* LRU and other injectable eviction strategy
 
 # Upcoming features:
 * Cold cache
-* Simple Stats
-* LRU and other injectable eviction strategy
 * Checksum document factory as an option
 * Cache Builder semantics
 * TTL

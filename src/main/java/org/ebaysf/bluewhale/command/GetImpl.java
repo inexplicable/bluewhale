@@ -1,5 +1,7 @@
 package org.ebaysf.bluewhale.command;
 
+import com.google.common.cache.AbstractCache;
+
 import java.util.concurrent.Callable;
 
 /**
@@ -15,16 +17,19 @@ public class GetImpl implements Get {
     private final Callable<?> _valueLoader;
     private final int _hashCode;
     private final boolean _loadIfAbsent;
+    private final AbstractCache.StatsCounter _statsCounter;
 
     public <V> GetImpl(final Object key,
                    final Callable<V> valueLoader,
                    final int hashCode,
-                   final boolean loadIfAbsent) {
+                   final boolean loadIfAbsent,
+                   final AbstractCache.StatsCounter statsCounter) {
 
         _key = key;
         _valueLoader = valueLoader;
         _hashCode = hashCode;
         _loadIfAbsent = loadIfAbsent;
+        _statsCounter = statsCounter;
     }
 
     public @Override Object getKey() {
@@ -41,6 +46,10 @@ public class GetImpl implements Get {
 
     public @Override boolean loadIfAbsent(){
         return _loadIfAbsent;
+    }
+
+    public @Override AbstractCache.StatsCounter getStatsCounter(){
+        return _statsCounter;
     }
 
 }

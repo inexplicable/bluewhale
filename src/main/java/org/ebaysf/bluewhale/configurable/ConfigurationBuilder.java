@@ -22,13 +22,16 @@ public class ConfigurationBuilder implements Configuration {
     private File _local;
     private int _concurrencyLevel = 3;
     private int _maxSegmentDepth = 2;
+    private int _maxPathDepth = 7;
 
     private BinDocumentFactory _factory = BinDocumentFactories.RAW;
     private int _journalLength = 1 << 29;//512MB
     private int _maxJournals = 8;//4G total
     private int _maxMemoryMappedJournals = 2;//1G RAM
     private float _leastJournalUsageRatio = 0.1f;
+    private float _dangerousJournalsRatio = 0.25f;//1/4
     private boolean _cleanUpOnExit = true;//clean up
+    private EvictionStrategy _evictionStrategy = EvictionStrategy.SILENCE;
     private EventBus _eventBus = new EventBus();//synchronous
     private ExecutorService _executor = Executors.newCachedThreadPool();
 
@@ -84,6 +87,16 @@ public class ConfigurationBuilder implements Configuration {
         return this;
     }
 
+    public @Override int getMaxPathDepth(){
+        return _maxPathDepth;
+    }
+
+    public ConfigurationBuilder setMaxPathDepth(final int maxPathDepth){
+        Preconditions.checkArgument(maxPathDepth > 0);
+        _maxPathDepth = maxPathDepth;
+        return this;
+    }
+
     public @Override BinDocumentFactory getBinDocumentFactory(){
         return _factory;
     }
@@ -133,12 +146,31 @@ public class ConfigurationBuilder implements Configuration {
         return this;
     }
 
+    public @Override float getDangerousJournalsRatio(){
+        return _dangerousJournalsRatio;
+    }
+
+    public ConfigurationBuilder setDangerousJournalsRatio(final float dangerousJournalsRatio){
+        Preconditions.checkArgument(dangerousJournalsRatio > 0f && dangerousJournalsRatio < 0.5f);
+        _dangerousJournalsRatio = dangerousJournalsRatio;
+        return this;
+    }
+
     public @Override boolean isCleanUpOnExit(){
         return _cleanUpOnExit;
     }
 
     public ConfigurationBuilder setCleanUpOnExit(final boolean cleanUpOnExit){
         _cleanUpOnExit = cleanUpOnExit;
+        return this;
+    }
+
+    public @Override EvictionStrategy getEvictionStrategy() {
+        return _evictionStrategy;
+    }
+
+    public ConfigurationBuilder setEvictionStrategy(final EvictionStrategy evictionStrategy){
+        _evictionStrategy = Preconditions.checkNotNull(evictionStrategy);
         return this;
     }
 
@@ -166,12 +198,15 @@ public class ConfigurationBuilder implements Configuration {
                 getValSerializer(),
                 getConcurrencyLevel(),
                 getMaxSegmentDepth(),
+                getMaxPathDepth(),
                 getBinDocumentFactory(),
                 getJournalLength(),
                 getMaxJournals(),
                 getMaxMemoryMappedJournals(),
                 getLeastJournalUsageRatio(),
+                getDangerousJournalsRatio(),
                 isCleanUpOnExit(),
+                getEvictionStrategy(),
                 getEventBus(),
                 getExecutor());
     }
@@ -184,13 +219,16 @@ public class ConfigurationBuilder implements Configuration {
 
         private final int _concurrencyLevel;
         private final int _maxSegmentDepth;
+        private final int _maxPathDepth;
 
         private final BinDocumentFactory _factory;
         private final int _journalLength;//512MB
         private final int _maxJournals;//4G total
         private final int _maxMemoryMappedJournals;//1G RAM
         private final float _leastJournalUsageRatio;
+        private final float _dangerousJournalsRatio;
         private final boolean _cleanUpOnExit;//clean up
+        private final EvictionStrategy _evictionStrategy;
         private final EventBus _eventBus;//synchronous
         private final ExecutorService _executor;
 
@@ -199,12 +237,15 @@ public class ConfigurationBuilder implements Configuration {
                                         final Serializer<V> valSerializer,
                                         final int concurrencyLevel,
                                         final int maxSegmentDepth,
+                                        final int maxPathDepth,
                                         final BinDocumentFactory factory,
                                         final int journalLength,
                                         final int maxJournals,
                                         final int maxMemoryMappedJournals,
                                         final float leastJournalUsageRatio,
+                                        final float dangerousJournalsRatio,
                                         final boolean cleanUpOnExit,
+                                        final EvictionStrategy evictionStrategy,
                                         final EventBus eventBus,
                                         final ExecutorService executor) {
 
@@ -214,12 +255,15 @@ public class ConfigurationBuilder implements Configuration {
 
             _concurrencyLevel = concurrencyLevel;
             _maxSegmentDepth = maxSegmentDepth;
+            _maxPathDepth = maxPathDepth;
             _factory = factory;
             _journalLength = journalLength;
             _maxJournals = maxJournals;
             _maxMemoryMappedJournals = maxMemoryMappedJournals;
             _leastJournalUsageRatio = leastJournalUsageRatio;
+            _dangerousJournalsRatio = dangerousJournalsRatio;
             _cleanUpOnExit = cleanUpOnExit;
+            _evictionStrategy = evictionStrategy;
             _eventBus = eventBus;
             _executor = executor;
         }
@@ -244,6 +288,10 @@ public class ConfigurationBuilder implements Configuration {
             return _maxSegmentDepth;
         }
 
+        public @Override int getMaxPathDepth(){
+            return _maxPathDepth;
+        }
+
         public @Override BinDocumentFactory getBinDocumentFactory(){
             return _factory;
         }
@@ -264,8 +312,16 @@ public class ConfigurationBuilder implements Configuration {
             return _leastJournalUsageRatio;
         }
 
+        public @Override float getDangerousJournalsRatio(){
+            return _dangerousJournalsRatio;
+        }
+
         public @Override boolean isCleanUpOnExit(){
             return _cleanUpOnExit;
+        }
+
+        public @Override EvictionStrategy getEvictionStrategy(){
+            return _evictionStrategy;
         }
 
         public @Override EventBus getEventBus(){

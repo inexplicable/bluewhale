@@ -22,6 +22,8 @@ public interface Configuration {
 
     int getMaxSegmentDepth();
 
+    int getMaxPathDepth();
+
     BinDocumentFactory getBinDocumentFactory();
 
     int getJournalLength();
@@ -32,7 +34,11 @@ public interface Configuration {
 
     float getLeastJournalUsageRatio();
 
+    float getDangerousJournalsRatio();
+
     boolean isCleanUpOnExit();
+
+    EvictionStrategy getEvictionStrategy();
 
     EventBus getEventBus();
 

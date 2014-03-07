@@ -1,5 +1,7 @@
 package org.ebaysf.bluewhale.command;
 
+import com.google.common.cache.AbstractCache;
+
 import java.util.concurrent.Callable;
 
 /**
@@ -14,5 +16,7 @@ public interface Get {
     boolean loadIfAbsent();
 
     <V> Callable<V> getValueLoader();
+
+    AbstractCache.StatsCounter getStatsCounter();
 
 }
