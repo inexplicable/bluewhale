@@ -1,9 +1,11 @@
 package org.ebaysf.bluewhale.persistence;
 
+import com.google.common.collect.Range;
 import com.google.common.io.BaseEncoding;
 import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
 import org.brettw.SparseBitSet;
+import org.ebaysf.bluewhale.segment.Segment;
 import org.javatuples.Pair;
 
 import java.io.*;
@@ -109,6 +111,50 @@ public abstract class Gsons {
                 return null;
             }
         });
+
+        _gsonBuilder.registerTypeAdapter(Range.class, new JsonSerializer<Range<Integer>>() {
+
+            public @Override JsonElement serialize(final Range<Integer> range,
+                                                   final Type type,
+                                                   final JsonSerializationContext jsonSerializationContext) {
+
+                final JsonArray arrayOfRange = new JsonArray();
+                arrayOfRange.add(new JsonPrimitive(range.lowerEndpoint().intValue()));
+                arrayOfRange.add(new JsonPrimitive(range.upperEndpoint().intValue()));
+                return arrayOfRange;
+            }
+        });
+
+        _gsonBuilder.registerTypeAdapter(Range.class, new JsonDeserializer<Range<Integer>>() {
+
+            public @Override Range<Integer> deserialize(final JsonElement jsonElement,
+                                                        final Type type,
+                                                        final JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
+
+                final JsonArray arrayOfRange = jsonElement.getAsJsonArray();
+                final int lower = arrayOfRange.get(0).getAsInt();
+                final int upper = arrayOfRange.get(1).getAsInt();
+                return Range.closed(lower, upper);
+            }
+        });
+
+        _gsonBuilder.registerTypeAdapter(Segment.class, new JsonDeserializer<Segment>() {
+
+            public @Override Segment deserialize(final JsonElement jsonElement,
+                                                 final Type type,
+                                                 final JsonDeserializationContext jsonDeserializationContext) throws JsonParseException {
+
+                final File local = jsonDeserializationContext.deserialize(jsonElement.getAsJsonObject().get("_local"), File.class);
+                final Range<Integer> range = jsonDeserializationContext.deserialize(jsonElement.getAsJsonObject().get("_range"), Range.class);
+                final int size = jsonDeserializationContext.deserialize(jsonElement.getAsJsonObject().get("_size"), Integer.class);
+
+                return new PersistedSegment(local, range, size);
+            }
+        });
+//
+//        _gsonBuilder.registerTypeAdapter(Segment.class, new InstanceCreator<Segment>() {
+//
+//        });
     }
 
     public static final Gson GSON = _gsonBuilder.create();

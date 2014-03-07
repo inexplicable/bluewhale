@@ -38,17 +38,18 @@ public class LeafSegment extends AbstractSegment {
 
     private static final Logger LOG = Logger.getLogger(LeafSegment.class.getName());
 
-    private final ByteBuffer _mmap;
-    private final LongBuffer _tokens;
+    private final transient ByteBuffer _mmap;
+    private final transient LongBuffer _tokens;
 
     public LeafSegment(final File local,
                        final Range<Integer> range,
                        final Configuration configuration,
                        final SegmentsManager manager,
                        final BinStorage storage,
-                       final ByteBuffer mmap) {
+                       final ByteBuffer mmap,
+                       final int size) {
 
-        super(local, range, configuration, manager, storage);
+        super(local, range, configuration, manager, storage, size);
 
         _mmap = mmap;
         _tokens = _mmap.asLongBuffer();
@@ -472,7 +473,7 @@ public class LeafSegment extends AbstractSegment {
     protected LeafSegment newLeafSegment(final Pair<File, ByteBuffer> allocate,
                                          final Range<Integer> range) throws IOException {
 
-        return new LeafSegment(allocate.getValue0(), range, configuration(), _manager, _storage, allocate.getValue1());
+        return new LeafSegment(allocate.getValue0(), range, configuration(), _manager, _storage, allocate.getValue1(), 0);
     }
 
     protected static final Predicate<Pair<Long, BinDocument>> _nonTombstonePredicate = new Predicate<Pair<Long, BinDocument>>() {

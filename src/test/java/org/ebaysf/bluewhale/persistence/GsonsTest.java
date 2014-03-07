@@ -1,13 +1,22 @@
 package org.ebaysf.bluewhale.persistence;
 
+import com.google.common.collect.Range;
+import com.google.common.eventbus.EventBus;
 import com.google.common.io.Files;
 import com.google.gson.Gson;
 import org.brettw.SparseBitSet;
+import org.ebaysf.bluewhale.configurable.Configuration;
+import org.ebaysf.bluewhale.segment.LeafSegment;
+import org.ebaysf.bluewhale.segment.Segment;
+import org.ebaysf.bluewhale.segment.SegmentsManager;
+import org.ebaysf.bluewhale.storage.BinStorage;
 import org.javatuples.Pair;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import java.io.File;
+import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -74,5 +83,36 @@ public class GsonsTest {
 
         Assert.assertEquals(origin, parsed);
 
+    }
+
+    @Test
+    public void testGsonWithLeafSegment(){
+
+        final Gson gson = Gsons.GSON;
+        Assert.assertNotNull(gson);
+
+        final File source = Files.createTempDir();
+        final Configuration psuedoConfiguration = Mockito.mock(Configuration.class);
+        Mockito.when(psuedoConfiguration.getEventBus()).thenReturn(new EventBus());
+
+        final LeafSegment origin = new LeafSegment(source,
+                Range.singleton(1),
+                psuedoConfiguration,
+                Mockito.mock(SegmentsManager.class),
+                Mockito.mock(BinStorage.class),
+                ByteBuffer.allocate(0),
+                1);
+
+        Assert.assertNotNull(origin);
+
+        final String str = gson.toJson(origin);
+
+        final Segment parsed = gson.fromJson(str, Segment.class);
+
+        Assert.assertNotNull(parsed);
+
+        Assert.assertEquals(origin.local(), parsed.local());
+        Assert.assertEquals(origin.range(), parsed.range());
+        Assert.assertEquals(origin.size(), parsed.size());
     }
 }

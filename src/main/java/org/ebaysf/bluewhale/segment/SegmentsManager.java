@@ -107,7 +107,7 @@ public class SegmentsManager {
                 final Range<Integer> range = Range.closed(lowerBound, upperBound);
                 final Pair<File, ByteBuffer> allocate = allocateBuffer();
                 builder.put(range,
-                        new LeafSegment(allocate.getValue0(), range, _configuration, this, storage, allocate.getValue1()));
+                        new LeafSegment(allocate.getValue0(), range, _configuration, this, storage, allocate.getValue1(), 0));
             }
         }
         else{
@@ -115,7 +115,7 @@ public class SegmentsManager {
                 final Range<Integer> range = loading.range();
                 final File source = loading.local();
                 builder.put(range,
-                        new LeafSegment(source, range, _configuration, this, storage, loadBuffer(source).getValue1()));
+                        new LeafSegment(source, range, _configuration, this, storage, loadBuffer(source).getValue1(), loading.size()));
             }
         }
         return builder.build();

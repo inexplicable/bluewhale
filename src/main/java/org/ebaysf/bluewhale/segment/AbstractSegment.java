@@ -26,26 +26,28 @@ public abstract class AbstractSegment implements Segment {
     private final File _local;
     private final Range<Integer> _range;
 
-    protected final Configuration _configuration;
-    protected final SegmentsManager _manager;
-    protected final BinStorage _storage;
-    protected final ReentrantLock _lock;
+    protected final transient Configuration _configuration;
+    protected final transient SegmentsManager _manager;
+    protected final transient BinStorage _storage;
+    protected final transient ReentrantLock _lock;
 
     protected volatile int _size;
-    protected volatile Segment _lower;
-    protected volatile Segment _upper;
+    protected volatile transient Segment _lower;
+    protected volatile transient Segment _upper;
 
     public AbstractSegment(final File local,
                            final Range<Integer> range,
                            final Configuration configuration,
                            final SegmentsManager manager,
-                           final BinStorage storage){
+                           final BinStorage storage,
+                           final int size){
 
         _local = Preconditions.checkNotNull(local);
         _range = Preconditions.checkNotNull(range);
         _configuration = Preconditions.checkNotNull(configuration);
         _manager = Preconditions.checkNotNull(manager);
         _storage = Preconditions.checkNotNull(storage);
+        _size = size;Preconditions.checkArgument(size >= 0);
 
         _lock = new ReentrantLock(true);
     }
