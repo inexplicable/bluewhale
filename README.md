@@ -45,12 +45,12 @@ readseq      :     1.09180 micros/op;  101.3 MB/s
 * Files cleanup on close
 * Simple Stats
 * LRU and other injectable eviction strategy
+* TTL
 
 # Upcoming features:
 * Cold cache
 * Checksum document factory as an option
 * Cache Builder semantics
-* TTL
 
 ```
 LevelDB:    iq80 leveldb version 0.4

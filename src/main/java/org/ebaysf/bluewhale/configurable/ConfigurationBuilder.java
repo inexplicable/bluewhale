@@ -6,10 +6,12 @@ import com.google.common.io.Files;
 import org.ebaysf.bluewhale.document.BinDocumentFactories;
 import org.ebaysf.bluewhale.document.BinDocumentFactory;
 import org.ebaysf.bluewhale.serialization.Serializer;
+import org.javatuples.Pair;
 
 import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by huzhou on 3/6/14.
@@ -30,6 +32,7 @@ public class ConfigurationBuilder implements Configuration {
     private int _maxMemoryMappedJournals = 2;//1G RAM
     private float _leastJournalUsageRatio = 0.1f;
     private float _dangerousJournalsRatio = 0.25f;//1/4
+    private Pair<Long, TimeUnit> _ttl = null;
     private boolean _cleanUpOnExit = true;//clean up
     private EvictionStrategy _evictionStrategy = EvictionStrategy.SILENCE;
     private EventBus _eventBus = new EventBus();//synchronous
@@ -156,6 +159,15 @@ public class ConfigurationBuilder implements Configuration {
         return this;
     }
 
+    public @Override Pair<Long, TimeUnit> getTTL(){
+        return _ttl;
+    }
+
+    public ConfigurationBuilder setTTL(final Pair<Long, TimeUnit> ttl){
+        _ttl = Preconditions.checkNotNull(ttl);
+        return this;
+    }
+
     public @Override boolean isCleanUpOnExit(){
         return _cleanUpOnExit;
     }
@@ -205,6 +217,7 @@ public class ConfigurationBuilder implements Configuration {
                 getMaxMemoryMappedJournals(),
                 getLeastJournalUsageRatio(),
                 getDangerousJournalsRatio(),
+                getTTL(),
                 isCleanUpOnExit(),
                 getEvictionStrategy(),
                 getEventBus(),
@@ -227,6 +240,7 @@ public class ConfigurationBuilder implements Configuration {
         private final int _maxMemoryMappedJournals;//1G RAM
         private final float _leastJournalUsageRatio;
         private final float _dangerousJournalsRatio;
+        private final Pair<Long, TimeUnit> _ttl;
         private final boolean _cleanUpOnExit;//clean up
         private final EvictionStrategy _evictionStrategy;
         private final EventBus _eventBus;//synchronous
@@ -244,6 +258,7 @@ public class ConfigurationBuilder implements Configuration {
                                         final int maxMemoryMappedJournals,
                                         final float leastJournalUsageRatio,
                                         final float dangerousJournalsRatio,
+                                        final Pair<Long, TimeUnit> ttl,
                                         final boolean cleanUpOnExit,
                                         final EvictionStrategy evictionStrategy,
                                         final EventBus eventBus,
@@ -262,6 +277,7 @@ public class ConfigurationBuilder implements Configuration {
             _maxMemoryMappedJournals = maxMemoryMappedJournals;
             _leastJournalUsageRatio = leastJournalUsageRatio;
             _dangerousJournalsRatio = dangerousJournalsRatio;
+            _ttl = ttl;
             _cleanUpOnExit = cleanUpOnExit;
             _evictionStrategy = evictionStrategy;
             _eventBus = eventBus;
@@ -314,6 +330,10 @@ public class ConfigurationBuilder implements Configuration {
 
         public @Override float getDangerousJournalsRatio(){
             return _dangerousJournalsRatio;
+        }
+
+        public @Override Pair<Long, TimeUnit> getTTL(){
+            return _ttl;
         }
 
         public @Override boolean isCleanUpOnExit(){

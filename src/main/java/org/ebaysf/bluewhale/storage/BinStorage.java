@@ -12,7 +12,8 @@ public interface BinStorage extends Iterable<BinJournal> {
 
 
     enum InspectionReport {
-        EvictionRequired,
+        EvictionRequiredBySize,
+        EvictionRequiredByTTL,
         CompressionRequired,
         RemainAsIs
     }

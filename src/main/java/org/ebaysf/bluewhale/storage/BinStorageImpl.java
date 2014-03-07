@@ -21,6 +21,7 @@ import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
@@ -341,7 +342,13 @@ public class BinStorageImpl implements BinStorage {
 
                             if((forced -= 1) >= 0){
                                 LOG.info(String.format("[storage] forced out aging journal:%s", journal));
-                                investigation.put(InspectionReport.EvictionRequired, journal);
+                                investigation.put(InspectionReport.EvictionRequiredBySize, journal);
+                                continue;
+                            }
+
+                            if(expired(journal)){
+                                LOG.info(String.format("[storage] expired aging journal:%s", journal));
+                                investigation.put(InspectionReport.EvictionRequiredByTTL, journal);
                                 continue;
                             }
 
@@ -362,7 +369,7 @@ public class BinStorageImpl implements BinStorage {
                             }
 
                             if(usage.isAllDead()){
-                                investigation.put(InspectionReport.EvictionRequired, journal);
+                                investigation.put(InspectionReport.EvictionRequiredBySize, journal);
                             }
                             else if(usage.isUsageRatioAbove(_configuration.getLeastJournalUsageRatio())){
                                 investigation.put(InspectionReport.CompressionRequired, journal);
@@ -377,6 +384,12 @@ public class BinStorageImpl implements BinStorage {
 
                     _eventBus.post(new PostInvestigationEvent(investigation));
                 }
+
+                private boolean expired(final BinJournal journal) {
+                    final Pair<Long, TimeUnit> ttl = _configuration.getTTL();
+                    return ttl != null
+                            && System.nanoTime() - journal.usage().getLastModified() > ttl.getValue1().toNanos(ttl.getValue0().longValue());
+                }
             });
         }
     }
@@ -387,14 +400,23 @@ public class BinStorageImpl implements BinStorage {
             final ListMultimap<InspectionReport, BinJournal> report = event.getSource();
 
             LOG.info(String.format("[storage] investigation report:%s to be handled", report));
-            final Set<BinJournal> exclusions = Sets.newIdentityHashSet();
-            for(BinJournal journal : report.get(InspectionReport.EvictionRequired)){
+            final Set<Range<Integer>> exclusions = Sets.newIdentityHashSet();
+            for(BinJournal journal : report.get(InspectionReport.EvictionRequiredBySize)){
                 for(BinDocument evict: journal){
                     if(_usageTrack.using(evict)){
                         _usageTrack.forget(evict, RemovalCause.SIZE);
                     }
                 }
-                exclusions.add(journal);
+                exclusions.add(journal.range());
+            }
+
+            for(BinJournal journal : report.get(InspectionReport.EvictionRequiredByTTL)){
+                for(BinDocument evict: journal){
+                    if(_usageTrack.using(evict)){
+                        _usageTrack.forget(evict, RemovalCause.EXPIRED);
+                    }
+                }
+                exclusions.add(journal.range());
             }
 
             for(BinJournal journal : report.get(InspectionReport.CompressionRequired)){
@@ -403,22 +425,30 @@ public class BinStorageImpl implements BinStorage {
                         _usageTrack.refresh(compress);
                     }
                 }
-                exclusions.add(journal);
+                exclusions.add(journal.range());
             }
 
             _openInvestigation = null;
 
             _lock.lock();
 
-            final ImmutableRangeMap.Builder<Integer, BinJournal> builder = ImmutableRangeMap.builder();
+            final ImmutableRangeMap.Builder<Integer, BinJournal> navigableBuilder = ImmutableRangeMap.builder();
+            final ImmutableRangeSet.Builder<Integer> dangerousBuilder = ImmutableRangeSet.builder();
 
             for(Map.Entry<Range<Integer>, BinJournal> entry : _navigableJournals.asMapOfRanges().entrySet()) {
-                if(!exclusions.contains(entry.getValue())){
-                    builder.put(entry.getKey(), entry.getValue());
+                if(!exclusions.contains(entry.getKey())){
+                    navigableBuilder.put(entry.getKey(), entry.getValue());
                 }
             }
 
-            _navigableJournals = builder.build();
+            for(Range<Integer> entry : _dangerousJournals.asRanges()) {
+                if(!exclusions.contains(entry)){
+                    dangerousBuilder.add(entry);
+                }
+            }
+
+            _navigableJournals = navigableBuilder.build();
+            _dangerousJournals = dangerousBuilder.build();
 
         }
         catch(Exception ex){
