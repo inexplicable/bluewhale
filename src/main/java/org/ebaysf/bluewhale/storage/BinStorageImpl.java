@@ -397,7 +397,7 @@ public class BinStorageImpl implements BinStorage {
                             if(usage.isAllDead()){
                                 investigation.put(InspectionReport.EvictionRequiredBySize, journal);
                             }
-                            else if(usage.isUsageRatioAbove(_configuration.getLeastJournalUsageRatio())){
+                            else if(!usage.isUsageRatioAbove(_configuration.getLeastJournalUsageRatio())){
                                 investigation.put(InspectionReport.CompressionRequired, journal);
                             }
                             else{
@@ -427,7 +427,7 @@ public class BinStorageImpl implements BinStorage {
 
             LOG.info(String.format("[storage] investigation report:%s to be handled", report));
             final Set<Range<Integer>> exclusions = Sets.newIdentityHashSet();
-            for(BinJournal journal : report.get(InspectionReport.EvictionRequiredBySize)){
+            for(BinJournal journal : Objects.firstNonNull(report.get(InspectionReport.EvictionRequiredBySize), Collections.<BinJournal>emptyList())){
                 for(BinDocument evict: journal){
                     if(_usageTrack.using(evict)){
                         _usageTrack.forget(evict, RemovalCause.SIZE);
@@ -436,7 +436,7 @@ public class BinStorageImpl implements BinStorage {
                 exclusions.add(journal.range());
             }
 
-            for(BinJournal journal : report.get(InspectionReport.EvictionRequiredByTTL)){
+            for(BinJournal journal : Objects.firstNonNull(report.get(InspectionReport.EvictionRequiredByTTL), Collections.<BinJournal>emptyList())){
                 for(BinDocument evict: journal){
                     if(_usageTrack.using(evict)){
                         _usageTrack.forget(evict, RemovalCause.EXPIRED);
@@ -445,7 +445,7 @@ public class BinStorageImpl implements BinStorage {
                 exclusions.add(journal.range());
             }
 
-            for(BinJournal journal : report.get(InspectionReport.CompressionRequired)){
+            for(BinJournal journal : Objects.firstNonNull(report.get(InspectionReport.CompressionRequired), Collections.<BinJournal>emptyList())){
                 for(BinDocument compress: journal){
                     if(_usageTrack.using(compress)){
                         _usageTrack.refresh(compress);

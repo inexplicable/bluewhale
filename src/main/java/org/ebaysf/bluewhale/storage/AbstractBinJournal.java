@@ -65,11 +65,12 @@ public abstract class AbstractBinJournal implements BinJournal {
 
     public @Override String toString(){
         return new StringBuilder()
-                .append("[journal]")
+                .append("journal=")
                 .append(_journalRange)
-                .append("][size:")
+                .append("&size=")
                 .append(getDocumentSize())
-                .append("]").toString();
+                .append("&state=")
+                .append(currentState()).toString();
     }
 
 }

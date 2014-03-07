@@ -411,7 +411,7 @@ public class LeafSegment extends AbstractSegment {
 
         if(event.getSource() == this){
 
-            LOG.info("[segment] path too long, optimization triggered");
+            LOG.fine("[segment] path too long, optimization triggered");
 
             final int offset = event.getOffset();
             final long headTokenExpected = event.getHeadToken();

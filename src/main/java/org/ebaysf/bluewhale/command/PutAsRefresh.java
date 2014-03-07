@@ -4,7 +4,7 @@ import com.google.common.base.Throwables;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.document.BinDocumentRaw;
 import org.ebaysf.bluewhale.serialization.Serializer;
-import org.xerial.snappy.Snappy;
+import org.ebaysf.bluewhale.serialization.Serializers;
 
 import java.nio.ByteBuffer;
 import java.util.logging.Logger;
@@ -34,11 +34,8 @@ public class PutAsRefresh implements Put {
         _lastModified = System.nanoTime();
 
         if((state & COMPRESSED_OR_TOMBSTONE) == 0){ //yet compressed, not tombstone
-            final ByteBuffer compression = ByteBuffer.allocate(valAsByteBuffer.remaining());
             try {
-                final int length = Snappy.compress(valAsByteBuffer, compression);
-                compression.rewind();
-                compression.limit(length);
+                final ByteBuffer compression = Serializers.compress(valAsByteBuffer);
                 _state = (byte)(state & BinDocument.COMPRESSED);
                 _valAsByteBuffer = compression;
                 return;

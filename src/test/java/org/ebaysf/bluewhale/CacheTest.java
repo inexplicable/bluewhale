@@ -113,14 +113,14 @@ public class CacheTest {
     public void testCachePerf() throws IOException, ExecutionException, InterruptedException {
 
         final File temp = Files.createTempDir();
-        final EventBus eventBus = new AsyncEventBus(_executor);
+        final EventBus eventBus = new EventBus();
 
         final Cache<String, String> cache = CacheBuilder.builder(Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
                         .setLocal(temp)
                         .setEventBus(eventBus)
                         .setExecutor(_executor)
-                        .setConcurrencyLevel(2)
-                        .setMaxSegmentDepth(2)
+                        .setConcurrencyLevel(3)
+                        .setMaxSegmentDepth(4)
                         .setBinDocumentFactory(BinDocumentFactories.RAW)
                         .setJournalLength(1 << 20)
                         .setMaxJournals(8)
@@ -128,9 +128,9 @@ public class CacheTest {
                         .setPersistent(false)
                         .build();
 
-        final String[] candidates = new String[1000];
+        final String[] candidates = new String[100000];
         for(int i = 0; i < candidates.length; i += 1){
-            candidates[i] = Strings.padStart(String.valueOf(i), 10, '*');//10bytes apprx
+            candidates[i] = Strings.padStart(String.valueOf(i), String.valueOf(candidates.length).length() + 1, '*');//10bytes apprx
         }
 
         Assert.assertNotNull(cache);
@@ -160,6 +160,7 @@ public class CacheTest {
 
         System.out.printf("[sequential] 1k sized cache, 100bytes key, 100bytes value, getIfPresent took: %dns\n", (System.nanoTime() - begin) / candidates.length);
 
+        Thread.sleep(10000000);
     }
 
     @Test
