@@ -17,8 +17,6 @@ import org.ebaysf.bluewhale.storage.BinJournal;
 import org.javatuples.Pair;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -84,21 +82,22 @@ public class CacheBuilder<K, V> implements Configuration {
         return this;
     }
 
-    public CacheBuilder<K, V> setCold(final File source) throws FileNotFoundException {
+    public CacheBuilder<K, V> setCold(final File source) throws IOException {
 
-        final PersistedCache<K, V> cold = Gsons.GSON.fromJson(new FileReader(source), PersistedCache.class);
+        final PersistedCache<K, V> cold = Gsons.load(source);
+
         final Configuration configuration = cold.getConfiguration();
 
-        setConcurrencyLevel(configuration.getConcurrencyLevel())
-                .setMaxSegmentDepth(configuration.getMaxSegmentDepth())
-                .setMaxPathDepth(configuration.getMaxPathDepth())
-                .setJournalLength(configuration.getJournalLength())
-                .setMaxJournals(configuration.getMaxJournals())
-                .setMaxMemoryMappedJournals(configuration.getMaxMemoryMappedJournals())
-                .setLeastJournalUsageRatio(configuration.getLeastJournalUsageRatio())
-                .setDangerousJournalsRatio(configuration.getDangerousJournalsRatio())
-                .setTTL(configuration.getTTL())
-                .setPersistent(true);
+        this.setConcurrencyLevel(configuration.getConcurrencyLevel())
+            .setMaxSegmentDepth(configuration.getMaxSegmentDepth())
+            .setMaxPathDepth(configuration.getMaxPathDepth())
+            .setJournalLength(configuration.getJournalLength())
+            .setMaxJournals(configuration.getMaxJournals())
+            .setMaxMemoryMappedJournals(configuration.getMaxMemoryMappedJournals())
+            .setLeastJournalUsageRatio(configuration.getLeastJournalUsageRatio())
+            .setDangerousJournalsRatio(configuration.getDangerousJournalsRatio())
+            .setTTL(configuration.getTTL())
+            .setPersistent(true);
 
         _coldSegments = Preconditions.checkNotNull(cold.getPersistedSegments());
         _coldJournals = Preconditions.checkNotNull(cold.getPersistedJournals());

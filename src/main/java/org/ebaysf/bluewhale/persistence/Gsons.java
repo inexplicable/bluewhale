@@ -310,4 +310,9 @@ public abstract class Gsons {
 
         return cold;
     }
+
+    public static <K, V> PersistedCache<K, V> load(final File source) throws IOException {
+
+        return GSON.fromJson(new FileReader(source), PersistedCache.class);
+    }
 }
