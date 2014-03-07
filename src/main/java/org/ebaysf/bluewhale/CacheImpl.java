@@ -1,5 +1,6 @@
 package org.ebaysf.bluewhale;
 
+import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.cache.*;
@@ -27,9 +28,9 @@ import org.ebaysf.bluewhale.storage.UsageTrack;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
@@ -42,28 +43,30 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
     private static final Logger LOG = Logger.getLogger(CacheImpl.class.getName());
 
     private final Configuration _configuration;
-    private final SegmentsManager _manager;
+    private final transient SegmentsManager _manager;
     private final BinStorage _storage;
-    private final StatsCounter _statsCounter;
+    private final transient StatsCounter _statsCounter;
 
-    private final RemovalListener<K, V> _removalListener;
+    private final transient RemovalListener<K, V> _removalListener;
 
     protected volatile RangeMap<Integer, Segment> _navigableSegments;
 
     public CacheImpl(final Configuration configuration,
                      final RemovalListener<K, V> removalListener,
-                     final List<BinJournal> loadings) throws IOException {
+                     final List<Segment> coldSegments,
+                     final List<BinJournal> coldJournals) throws IOException {
 
         _configuration = Preconditions.checkNotNull(configuration);
         _removalListener = Preconditions.checkNotNull(removalListener);
 
         _manager = new SegmentsManager(_configuration);
-        _storage = new BinStorageImpl(_configuration, loadings, this);
+        _storage = new BinStorageImpl(_configuration, coldJournals, this);
         _statsCounter = new SimpleStatsCounter();
 
         _configuration.getEventBus().register(this);
 
-        _navigableSegments = _manager.initSegments(_storage);
+        _navigableSegments = _manager.initSegments(
+                Objects.firstNonNull(coldSegments, Collections.<Segment>emptyList()), _storage);
     }
 
     public @Override Serializer<K> getKeySerializer() {
@@ -148,7 +151,7 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
 
         try {
             //the fastest way to invalidate everything is to wipe the segments clean.
-            _navigableSegments = _manager.initSegments(_storage);
+            _navigableSegments = _manager.initSegments(Collections.<Segment>emptyList(), _storage);
         }
         catch (IOException e) {
             LOG.warning(Throwables.getStackTraceAsString(e));
@@ -212,7 +215,7 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
 
         final ImmutableRangeMap.Builder<Integer, Segment> modifying = ImmutableRangeMap.builder();
         for(Map.Entry<Range<Integer>, Segment> entry : _navigableSegments.asMapOfRanges().entrySet()){
-            if(!Objects.equals(before.range(), entry.getKey())){
+            if(!Objects.equal(before.range(), entry.getKey())){
                 modifying.put(entry.getKey(), entry.getValue());
             }
         }

@@ -29,6 +29,7 @@ import org.ebaysf.bluewhale.Cache;
 import org.ebaysf.bluewhale.CacheImpl;
 import org.ebaysf.bluewhale.configurable.ConfigurationBuilder;
 import org.ebaysf.bluewhale.document.BinDocumentFactories;
+import org.ebaysf.bluewhale.segment.Segment;
 import org.ebaysf.bluewhale.serialization.Serializers;
 import org.ebaysf.bluewhale.storage.BinJournal;
 import org.iq80.leveldb.DBFactory;
@@ -89,6 +90,7 @@ public class DbBenchmark
 
                         }
                     },
+                    Collections.<Segment>emptyList(),
                     Collections.<BinJournal>emptyList());
         }
         catch (IOException ex) {

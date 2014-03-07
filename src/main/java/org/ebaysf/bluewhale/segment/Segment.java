@@ -9,6 +9,7 @@ import org.ebaysf.bluewhale.serialization.Serializer;
 import org.ebaysf.bluewhale.storage.BinStorage;
 import org.ebaysf.bluewhale.storage.UsageTrack;
 
+import java.io.File;
 import java.io.IOException;
 import java.math.RoundingMode;
 import java.util.List;
@@ -26,6 +27,8 @@ public interface Segment extends UsageTrack {
     int MAX_SEGMENTS = 1 << 16;
 
     Configuration configuration();
+
+    File local();
 
     Range<Integer> range();
 

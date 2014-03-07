@@ -22,6 +22,7 @@ import org.ebaysf.bluewhale.serialization.Serializer;
 import org.ebaysf.bluewhale.storage.BinStorage;
 import org.javatuples.Pair;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.LongBuffer;
@@ -40,19 +41,20 @@ public class LeafSegment extends AbstractSegment {
     private final ByteBuffer _mmap;
     private final LongBuffer _tokens;
 
-    public LeafSegment(final Range<Integer> range,
+    public LeafSegment(final File local,
+                       final Range<Integer> range,
                        final Configuration configuration,
                        final SegmentsManager manager,
                        final BinStorage storage,
                        final ByteBuffer mmap) {
 
-        super(range, configuration, manager, storage);
+        super(local, range, configuration, manager, storage);
 
         _mmap = mmap;
         _tokens = _mmap.asLongBuffer();
 
         configuration().getEventBus().register(this);
-        _manager.rememberBufferUsedBySegment(_mmap, this);
+        _manager.rememberBufferUsedBySegment(new Pair<File, ByteBuffer>(local, _mmap), this);
     }
 
     public @Override <V> V get(Get get) throws ExecutionException, IOException {
@@ -395,7 +397,7 @@ public class LeafSegment extends AbstractSegment {
         if(event.getSource() == this){
 
             LOG.info(String.format("[segment] split occurred %s -> %s,%s", this, _lower, _upper));
-            _manager.freeUpBuffer(_mmap);
+            _manager.freeUpBuffer(new Pair<File, ByteBuffer>(local(), _mmap));
         }
     }
 
@@ -409,7 +411,7 @@ public class LeafSegment extends AbstractSegment {
 
             LOG.info("[segment] invalidate all");
             configuration().getEventBus().unregister(this);
-            _manager.freeUpBuffer(_mmap);
+            _manager.freeUpBuffer(new Pair<File, ByteBuffer>(local(), _mmap));
         }
     }
 
@@ -488,10 +490,10 @@ public class LeafSegment extends AbstractSegment {
         }
     };
 
-    protected LeafSegment newLeafSegment(final ByteBuffer buffer,
+    protected LeafSegment newLeafSegment(final Pair<File, ByteBuffer> allocate,
                                          final Range<Integer> range) throws IOException {
 
-        return new LeafSegment(range, configuration(), _manager, _storage, buffer);
+        return new LeafSegment(allocate.getValue0(), range, configuration(), _manager, _storage, allocate.getValue1());
     }
 
 }

@@ -12,12 +12,14 @@ import org.ebaysf.bluewhale.configurable.Configuration;
 import org.ebaysf.bluewhale.storage.BinStorage;
 import org.ebaysf.bluewhale.util.Files;
 import org.ebaysf.bluewhale.util.Maps;
+import org.javatuples.Pair;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.LongBuffer;
 import java.nio.channels.FileChannel;
+import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -32,70 +34,90 @@ public class SegmentsManager {
 
     private final Configuration _configuration;
     private final int _spanAtLeast;
-    private final Queue<ByteBuffer> _availableBuffers;
+    private final Queue<Pair<File, ByteBuffer>> _availableBuffers;
 
-    private final RemovalListener<ByteBuffer, Segment> _segmentsNoLongerUsedListener = new RemovalListener<ByteBuffer, Segment>() {
-        public @Override void onRemoval(RemovalNotification<ByteBuffer, Segment> notification) {
+    private final RemovalListener<Pair<File, ByteBuffer>, Segment> _segmentsNoLongerUsedListener = new RemovalListener<Pair<File, ByteBuffer>, Segment>() {
+        public @Override void onRemoval(RemovalNotification<Pair<File, ByteBuffer>, Segment> notification) {
 			if(RemovalCause.COLLECTED.equals(notification.getCause())){
                 _bufferRefsWatchers.get(notification.getKey()).onRemoval(notification);
 			}
 		}
 	};
 
-    private final Map<ByteBuffer, RemovalListener<ByteBuffer, Segment>> _bufferRefsWatchers =
+    private final Map<Pair<File, ByteBuffer>, RemovalListener<Pair<File, ByteBuffer>, Segment>> _bufferRefsWatchers =
             Maps.INSTANCE.newIdentityMap();
-	private final com.google.common.cache.Cache<ByteBuffer, Segment> _buffersUsedBySegments =
+	private final com.google.common.cache.Cache<Pair<File, ByteBuffer>, Segment> _buffersUsedBySegments =
             Maps.INSTANCE.newIdentityWeakValuesCache(_segmentsNoLongerUsedListener);
 
     public SegmentsManager(final Configuration configuration){
 
         _configuration = Preconditions.checkNotNull(configuration);
         _spanAtLeast = Math.max(1, Segment.MAX_SEGMENTS >> (configuration.getConcurrencyLevel() + configuration.getMaxSegmentDepth()));
-        _availableBuffers = new ConcurrentLinkedQueue<ByteBuffer>();
+        _availableBuffers = new ConcurrentLinkedQueue<Pair<File, ByteBuffer>>();
 
         LOG.info(String.format("[segment manager] spanAtLeast:%d\n", _spanAtLeast));
     }
 
-    public ByteBuffer allocateBuffer() throws IOException {
+    public Pair<File, ByteBuffer> allocateBuffer() throws IOException {
 
-        final ByteBuffer buffer = _availableBuffers.poll();
-        if(buffer == null){
+        final Pair<File, ByteBuffer> available = _availableBuffers.poll();
+        if(available == null){
             _configuration.getExecutor().submit(_allocateBufferAheadTask);
             return newBuffer();
         }
         else {
-            return buffer;
+            return available;
         }
     }
 
-	protected ByteBuffer newBuffer() throws IOException {
+	protected Pair<File, ByteBuffer> newBuffer() throws IOException {
 
         final File bufferFile = Files.newSegmentFile(_configuration.getLocal(), _configuration.isCleanUpOnExit());
         final ByteBuffer buffer = com.google.common.io.Files.map(bufferFile, FileChannel.MapMode.READ_WRITE, Segment.SIZE);
 		resetTokens(buffer.asLongBuffer());
-		return buffer;
+		return new Pair<File, ByteBuffer>(bufferFile, buffer);
 	}
+
+    protected Pair<File, ByteBuffer> loadBuffer(final File source) throws IOException {
+
+        if(_configuration.isCleanUpOnExit()){
+            source.deleteOnExit();
+        }
+        final ByteBuffer buffer = com.google.common.io.Files.map(source, FileChannel.MapMode.READ_WRITE, Segment.SIZE);
+        return new Pair<File, ByteBuffer>(source, buffer);
+    }
 
     public int getSpanAtLeast() {
         return _spanAtLeast;
     }
 
-    public void freeUpBuffer(final ByteBuffer buffer){
+    public void freeUpBuffer(final Pair<File, ByteBuffer> buffer){
 
         _configuration.getExecutor().submit(new FreeUpBufferTask(buffer));
     }
 
-    public RangeMap<Integer, Segment> initSegments(final BinStorage storage) throws IOException {
+    public RangeMap<Integer, Segment> initSegments(final List<Segment> coldSegments,
+                                                   final BinStorage storage) throws IOException {
 
-        final int span = Segment.MAX_SEGMENTS >> _configuration.getConcurrencyLevel();
         final ImmutableRangeMap.Builder<Integer, Segment> builder = ImmutableRangeMap.builder();
+        if(coldSegments.isEmpty()){
+            final int span = Segment.MAX_SEGMENTS >> _configuration.getConcurrencyLevel();
 
-        for(int lowerBound = 0, upperBound = lowerBound + span - 1; lowerBound < Segment.MAX_SEGMENTS; lowerBound += span, upperBound += span){
-            final Range<Integer> range = Range.closed(lowerBound, upperBound);
-            builder.put(range,
-                    new LeafSegment(range, _configuration, this, storage, this.allocateBuffer()));
+            for(int lowerBound = 0, upperBound = lowerBound + span - 1; lowerBound < Segment.MAX_SEGMENTS; lowerBound += span, upperBound += span){
+                final Range<Integer> range = Range.closed(lowerBound, upperBound);
+                final Pair<File, ByteBuffer> allocate = allocateBuffer();
+                builder.put(range,
+                        new LeafSegment(allocate.getValue0(), range, _configuration, this, storage, allocate.getValue1()));
+            }
         }
-
+        else{
+            for(Segment loading: coldSegments){
+                final Range<Integer> range = loading.range();
+                final File source = loading.local();
+                builder.put(range,
+                        new LeafSegment(source, range, _configuration, this, storage, loadBuffer(source).getValue1()));
+            }
+        }
         return builder.build();
     }
 
@@ -119,7 +141,7 @@ public class SegmentsManager {
      * @param buffer
      * @param segment
      */
-    protected void rememberBufferUsedBySegment(final ByteBuffer buffer, final Segment segment){
+    protected void rememberBufferUsedBySegment(final Pair<File, ByteBuffer> buffer, final Segment segment){
 
         _buffersUsedBySegments.put(buffer, segment);
     }
@@ -141,11 +163,11 @@ public class SegmentsManager {
         }
     };
 
-    private class FreeUpBufferTask implements Runnable, RemovalListener<ByteBuffer, Segment> {
+    private class FreeUpBufferTask implements Runnable, RemovalListener<Pair<File, ByteBuffer>, Segment> {
 
-        private final ByteBuffer _buffer;
+        private final Pair<File, ByteBuffer> _buffer;
 
-        public FreeUpBufferTask(final ByteBuffer buffer){
+        public FreeUpBufferTask(final Pair<File, ByteBuffer> buffer){
 
             _buffer = buffer;
             _bufferRefsWatchers.put(_buffer, this);
@@ -161,7 +183,7 @@ public class SegmentsManager {
             }
         }
 
-        public @Override void onRemoval(RemovalNotification<ByteBuffer, Segment> notification) {
+        public @Override void onRemoval(RemovalNotification<Pair<File, ByteBuffer>, Segment> notification) {
 
             if(notification.getKey() == _buffer){
                 freeUp();
@@ -171,7 +193,7 @@ public class SegmentsManager {
         private void freeUp() {
 
             _bufferRefsWatchers.remove(_buffer);
-            resetTokens(_buffer.asLongBuffer());
+            resetTokens(_buffer.getValue1().asLongBuffer());
             _availableBuffers.offer(_buffer);
 
             LOG.fine("[released][segment][buffer]");

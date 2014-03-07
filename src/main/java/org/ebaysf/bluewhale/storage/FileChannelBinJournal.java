@@ -29,8 +29,8 @@ public class FileChannelBinJournal extends AbstractBinJournal {
 
     private static final Logger LOG = Logger.getLogger(FileChannelBinJournal.class.getName());
 
-    protected final RandomAccessFile _raf;
-    protected final FileChannel _fch;
+    protected final transient RandomAccessFile _raf;
+    protected final transient FileChannel _fch;
     protected int _documentLength90 = 256;
 
     public FileChannelBinJournal(final File local,

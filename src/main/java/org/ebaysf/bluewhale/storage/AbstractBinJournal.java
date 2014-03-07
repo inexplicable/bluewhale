@@ -15,8 +15,8 @@ public abstract class AbstractBinJournal implements BinJournal {
     private final Range<Integer> _journalRange;
     private final int _length;
 
-    protected final JournalsManager _manager;
-    protected final BinDocumentFactory _factory;
+    protected final transient JournalsManager _manager;
+    protected final transient BinDocumentFactory _factory;
     protected volatile int _size;
     protected final JournalUsage _journalUsage;
 

@@ -19,7 +19,7 @@ public class ByteBufferBinJournal extends AbstractBinJournal {
 
     private static final Logger LOG = Logger.getLogger(ByteBufferBinJournal.class.getName());
 
-    protected final ByteBuffer _mmap;
+    protected final transient ByteBuffer _mmap;
 
     public ByteBufferBinJournal(final File local,
                                 final JournalState state,

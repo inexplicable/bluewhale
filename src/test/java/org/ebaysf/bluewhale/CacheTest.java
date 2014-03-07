@@ -9,6 +9,7 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.io.Files;
 import org.ebaysf.bluewhale.configurable.ConfigurationBuilder;
 import org.ebaysf.bluewhale.document.BinDocumentFactories;
+import org.ebaysf.bluewhale.segment.Segment;
 import org.ebaysf.bluewhale.serialization.Serializers;
 import org.ebaysf.bluewhale.storage.BinJournal;
 import org.junit.AfterClass;
@@ -60,6 +61,7 @@ public class CacheTest {
 
                     }
                 },
+                Collections.<Segment>emptyList(),
                 Collections.<BinJournal>emptyList());
 
         Assert.assertNotNull(cache);
@@ -99,6 +101,7 @@ public class CacheTest {
                         System.out.println(notification);
                     }
                 },
+                Collections.<Segment>emptyList(),
                 Collections.<BinJournal>emptyList());
 
         Assert.assertNotNull(cache);
@@ -146,6 +149,7 @@ public class CacheTest {
 
                     }
                 },
+                Collections.<Segment>emptyList(),
                 Collections.<BinJournal>emptyList());
 
         final String[] candidates = new String[1000];
@@ -209,6 +213,7 @@ public class CacheTest {
 
                     }
                 },
+                Collections.<Segment>emptyList(),
                 Collections.<BinJournal>emptyList());
 
         final String[] candidates = new String[10000];

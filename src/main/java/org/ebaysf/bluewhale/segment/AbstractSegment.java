@@ -10,6 +10,7 @@ import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.serialization.Serializer;
 import org.ebaysf.bluewhale.storage.BinStorage;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -22,6 +23,7 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public abstract class AbstractSegment implements Segment {
 
+    private final File _local;
     private final Range<Integer> _range;
 
     protected final Configuration _configuration;
@@ -33,17 +35,23 @@ public abstract class AbstractSegment implements Segment {
     protected volatile Segment _lower;
     protected volatile Segment _upper;
 
-    public AbstractSegment(final Range<Integer> range,
+    public AbstractSegment(final File local,
+                           final Range<Integer> range,
                            final Configuration configuration,
                            final SegmentsManager manager,
                            final BinStorage storage){
 
+        _local = Preconditions.checkNotNull(local);
         _range = Preconditions.checkNotNull(range);
         _configuration = Preconditions.checkNotNull(configuration);
         _manager = Preconditions.checkNotNull(manager);
         _storage = Preconditions.checkNotNull(storage);
 
         _lock = new ReentrantLock(true);
+    }
+
+    public @Override File local(){
+        return _local;
     }
 
     public @Override Range<Integer> range() {

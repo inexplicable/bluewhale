@@ -227,14 +227,14 @@ public class ConfigurationBuilder implements Configuration {
     protected static class ConfigurationImpl implements Configuration {
 
         private final File _local;
-        private final Serializer<?> _keySerializer;
-        private final Serializer<?> _valSerializer;
+        private final transient Serializer<?> _keySerializer;
+        private final transient Serializer<?> _valSerializer;
 
         private final int _concurrencyLevel;
         private final int _maxSegmentDepth;
         private final int _maxPathDepth;
 
-        private final BinDocumentFactory _factory;
+        private final transient BinDocumentFactory _factory;
         private final int _journalLength;//512MB
         private final int _maxJournals;//4G total
         private final int _maxMemoryMappedJournals;//1G RAM
@@ -242,9 +242,9 @@ public class ConfigurationBuilder implements Configuration {
         private final float _dangerousJournalsRatio;
         private final Pair<Long, TimeUnit> _ttl;
         private final boolean _cleanUpOnExit;//clean up
-        private final EvictionStrategy _evictionStrategy;
-        private final EventBus _eventBus;//synchronous
-        private final ExecutorService _executor;
+        private final transient EvictionStrategy _evictionStrategy;
+        private final transient EventBus _eventBus;//synchronous
+        private final transient ExecutorService _executor;
 
         public <K, V> ConfigurationImpl(final File local,
                                         final Serializer<K> keySerializer,
@@ -351,6 +351,27 @@ public class ConfigurationBuilder implements Configuration {
         public @Override ExecutorService getExecutor(){
             return _executor;
         }
+//
+//        public @Override String toString(){
+//
+//            final StringBuilder strBldr = new StringBuilder();
+//
+//            strBldr.append('{');
+//            strBldr.append("\"local\":\"").append(_local.getAbsolutePath()).append("\",");
+//            strBldr.append("\"concurrencyLevel\":").append(_concurrencyLevel).append(",");
+//            strBldr.append("\"maxSegmentDepth\":").append(_maxSegmentDepth).append(",");
+//            strBldr.append("\"maxPathDepth\":").append(_maxPathDepth).append(",");
+//            strBldr.append("\"journalLength\":").append(_journalLength).append(",");
+//            strBldr.append("\"maxJournals\":").append(_maxJournals).append(",");
+//            strBldr.append("\"maxMemoryMappedJournals\":").append(_maxMemoryMappedJournals).append(",");
+//            strBldr.append("\"leastJournalUsageRatio\":").append(_leastJournalUsageRatio).append(",");
+//            strBldr.append("\"dangerousJournalsRatio\":").append(_dangerousJournalsRatio).append(",");
+//            strBldr.append("\"ttl\":\"").append(_ttl != null ? _ttl.getValue1().toNanos(_ttl.getValue0().longValue())).append("ns\"");
+//            strBldr.append("\"cleanUpOnExit\":").append(_cleanUpOnExit).append(",");
+//            strBldr.append('}');
+//
+//            return strBldr.toString();
+//        }
     }
 }
 
