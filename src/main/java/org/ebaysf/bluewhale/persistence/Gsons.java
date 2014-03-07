@@ -18,7 +18,9 @@ import java.util.regex.Pattern;
  */
 public abstract class Gsons {
 
-    private static final GsonBuilder _gsonBuilder = new GsonBuilder().excludeFieldsWithModifiers(Modifier.TRANSIENT);
+    private static final GsonBuilder _gsonBuilder = new GsonBuilder()
+            .serializeNulls()
+            .excludeFieldsWithModifiers(Modifier.TRANSIENT, Modifier.STATIC);
 
     private static final Type _ttlType = new TypeToken<Pair<Long, TimeUnit>>(){}.getType();
     private static final Pattern _ttlPattern = Pattern.compile("([0-9]+)ns");
@@ -44,7 +46,7 @@ public abstract class Gsons {
             }
         });
 
-        _gsonBuilder.registerTypeAdapter(_ttlType, new JsonSerializer<Pair<Long, TimeUnit>>() {
+        _gsonBuilder.registerTypeAdapter(Pair.class, new JsonSerializer<Pair<Long, TimeUnit>>() {
 
             public @Override JsonElement serialize(final Pair<Long, TimeUnit> ttl,
                                                    final Type type,
@@ -54,7 +56,7 @@ public abstract class Gsons {
             }
         });
 
-        _gsonBuilder.registerTypeAdapter(_ttlType, new JsonDeserializer<Pair<Long, TimeUnit>>() {
+        _gsonBuilder.registerTypeAdapter(Pair.class, new JsonDeserializer<Pair<Long, TimeUnit>>() {
 
             public @Override Pair<Long, TimeUnit> deserialize(final JsonElement json,
                                                               final Type typeOfT,
@@ -63,7 +65,7 @@ public abstract class Gsons {
                 final String nsAsStr = json.getAsJsonPrimitive().getAsString();
                 final Matcher ttlMatcher = _ttlPattern.matcher(nsAsStr);
                 if(ttlMatcher.matches()){
-                    return new Pair<Long, TimeUnit>(Long.valueOf(ttlMatcher.group(0)), TimeUnit.NANOSECONDS);
+                    return new Pair<Long, TimeUnit>(Long.valueOf(ttlMatcher.group(1)), TimeUnit.NANOSECONDS);
                 }
                 return null;
             }
@@ -108,4 +110,6 @@ public abstract class Gsons {
             }
         });
     }
+
+    public static final Gson GSON = _gsonBuilder.create();
 }

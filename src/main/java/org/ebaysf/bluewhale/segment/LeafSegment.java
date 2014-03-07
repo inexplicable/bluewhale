@@ -356,7 +356,7 @@ public class LeafSegment extends AbstractSegment {
         configuration().getEventBus().post(new SegmentSplitEvent(this, getChildren()));
     }
 
-    protected void notifyRemoval(final Put put, final long next) {
+    protected void notifyRemoval(final Put put, final long token) {
 
         if(!put.suppressRemovalNotification()){
 
@@ -366,7 +366,7 @@ public class LeafSegment extends AbstractSegment {
             final RemovalCause cause = put.invalidates() ? RemovalCause.EXPLICIT : RemovalCause.REPLACED;
 
             try {
-                for(BinDocument doc = storage.read(next); doc != null; doc = storage.read(doc.getNext())){
+                for(BinDocument doc = storage.read(token); doc != null; doc = storage.read(doc.getNext())){
                     if(keySerializer.equals(key, doc.getKey())){
                         if(!doc.isTombstone()){
                             configuration().getEventBus().post(new RemovalNotificationEvent(doc, cause));
