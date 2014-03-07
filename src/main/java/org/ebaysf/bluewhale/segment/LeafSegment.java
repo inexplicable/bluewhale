@@ -296,7 +296,7 @@ public class LeafSegment extends AbstractSegment {
 
     protected void split() throws IOException {
 
-        LOG.info("[segment] split into lower & upper");
+        LOG.fine("[segment] split into lower & upper");
 
         final int lowerBound = range().lowerEndpoint();
         final int upperBound = range().upperEndpoint();
@@ -357,31 +357,21 @@ public class LeafSegment extends AbstractSegment {
     }
 
     protected void notifyRemoval(final Put put, final long next) {
+
         if(!put.suppressRemovalNotification()){
 
             final Serializer<Object> keySerializer = getKeySerializer();
             final Object key = put.getKey(keySerializer);
             final BinStorage storage = getStorage();
+            final RemovalCause cause = put.invalidates() ? RemovalCause.EXPLICIT : RemovalCause.REPLACED;
 
             try {
-                if(put.invalidates()){
-                    for(BinDocument doc = storage.read(next); doc != null; doc = storage.read(doc.getNext())){
-                        if(keySerializer.equals(key, doc.getKey())){
-                            if(!doc.isTombstone()){
-                                configuration().getEventBus().post(new RemovalNotificationEvent(doc, RemovalCause.EXPLICIT));
-                            }
-                            return;
+                for(BinDocument doc = storage.read(next); doc != null; doc = storage.read(doc.getNext())){
+                    if(keySerializer.equals(key, doc.getKey())){
+                        if(!doc.isTombstone()){
+                            configuration().getEventBus().post(new RemovalNotificationEvent(doc, cause));
                         }
-                    }
-                }
-                else{
-                    for(BinDocument doc = storage.read(next); doc != null; doc = storage.read(doc.getNext())){
-                        if(keySerializer.equals(key, doc.getKey())){
-                            if(!doc.isTombstone()){
-                                configuration().getEventBus().post(new RemovalNotificationEvent(doc, RemovalCause.REPLACED));
-                            }
-                            return;
-                        }
+                        return;
                     }
                 }
             }
@@ -431,42 +421,38 @@ public class LeafSegment extends AbstractSegment {
             }
 
             final BinStorage storage = getStorage();
-            final Serializer<Object> keySerializer = getKeySerializer();
-            final Set<ByteBuffer> exists = Sets.newTreeSet(new Comparator<ByteBuffer>() {
-                public @Override int compare(ByteBuffer o1, ByteBuffer o2) {
-                    if(keySerializer.equals(o1, o2)){
-                        return 0;
-                    }
-                    else{
-                        return o1.hashCode() - o2.hashCode();
-                    }
-                }
-            });
+            final Set<ByteBuffer> knowns = Sets.newTreeSet(new KeyComparator(getKeySerializer()));
+            final Stack<BinDocument> survivals = new Stack<BinDocument>();
 
-            final Stack<BinDocument> lifo = new Stack<BinDocument>();
-            int walkThrough = 0;
+            int pathDepth = 0;
+
             try{
+                //go through the path, push 1st met (& none tombstone) as survivals
+                //this will exclude all tombstones, and all obsolete values
                 for(BinDocument doc = storage.read(token); doc != null; doc = storage.read(doc.getNext())){
-                    if(!exists.contains(doc.getKey())){
-                        exists.add(doc.getKey());
+                    if(!knowns.contains(doc.getKey())){
+                        knowns.add(doc.getKey());
                         if(!doc.isTombstone()){//already removed, no need to rebuild
-                            lifo.add(doc);
+                            survivals.add(doc);
                         }
                     }
-                    walkThrough += 1;
+                    pathDepth += 1;
                 }
 
-                if(!lifo.empty() && lifo.size() < walkThrough / 2){
-                    //a shorten path is to happen
+                //when survivals are less than half of the path depth, this includes a corner case when there's no survivals at all
+                if(survivals.size() < pathDepth / 2){
                     long next = -1L;
 
-                    while(!lifo.isEmpty()){
-                        final BinDocument reset = lifo.pop();
-                        next = storage.append(new PutAsRefresh(reset.getKey(), reset.getValue(), reset.getHashCode(), reset.getState()).create(getKeySerializer(), getValSerializer(), next));
+                    //note, this is a stack pop, therefore LIFO, not really a must (key dedup happened), but fits better the actual write order
+                    while(!survivals.empty()){
+                        final BinDocument survival = survivals.pop();
+                        next = storage.append(new PutAsRefresh(survival.getKey(), survival.getValue(), survival.getHashCode(), survival.getState())
+                                .create(getKeySerializer(), getValSerializer(), next));
                     }
 
                     try{
                         _lock.lock();
+                        //validate if the headToken is untouched.
                         if(headTokenExpected == _tokens.get(offset)){
                             _tokens.put(offset, next);
                         }
@@ -483,6 +469,12 @@ public class LeafSegment extends AbstractSegment {
         }
     }
 
+    protected LeafSegment newLeafSegment(final Pair<File, ByteBuffer> allocate,
+                                         final Range<Integer> range) throws IOException {
+
+        return new LeafSegment(allocate.getValue0(), range, configuration(), _manager, _storage, allocate.getValue1());
+    }
+
     protected static final Predicate<Pair<Long, BinDocument>> _nonTombstonePredicate = new Predicate<Pair<Long, BinDocument>>() {
 
         public @Override boolean apply(final Pair<Long, BinDocument> input) {
@@ -490,10 +482,23 @@ public class LeafSegment extends AbstractSegment {
         }
     };
 
-    protected LeafSegment newLeafSegment(final Pair<File, ByteBuffer> allocate,
-                                         final Range<Integer> range) throws IOException {
+    protected static final class KeyComparator implements Comparator<ByteBuffer> {
 
-        return new LeafSegment(allocate.getValue0(), range, configuration(), _manager, _storage, allocate.getValue1());
+        private final Serializer<?> _keySerializer;
+
+        public KeyComparator(final Serializer<?> keySerializer){
+
+            _keySerializer = keySerializer;
+        }
+
+        public @Override int compare(final ByteBuffer o1, final ByteBuffer o2) {
+            if(_keySerializer.equals(o1, o2)){
+                return 0;
+            }
+            else{
+                return o1.hashCode() - o2.hashCode();
+            }
+        }
     }
 
 }
