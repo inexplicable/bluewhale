@@ -14,6 +14,7 @@ import org.ebaysf.bluewhale.serialization.Serializers;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.Ignore;
 import org.mockito.Mockito;
 
 import java.io.File;
@@ -38,6 +39,7 @@ public class BinStorageTest {
     }
 
     @Test(expected = IllegalArgumentException.class)
+    @Ignore
     public void testBinStorageImpl() throws IOException {
 
         final File temp = Files.createTempDir();

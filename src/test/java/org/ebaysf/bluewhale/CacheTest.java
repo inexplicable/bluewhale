@@ -160,7 +160,7 @@ public class CacheTest {
 
         System.out.printf("[sequential] 1k sized cache, 100bytes key, 100bytes value, getIfPresent took: %dns\n", (System.nanoTime() - begin) / candidates.length);
 
-        Thread.sleep(10000000);
+        Thread.sleep(1000);
     }
 
     @Test
