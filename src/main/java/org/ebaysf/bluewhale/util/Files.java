@@ -1,6 +1,8 @@
 package org.ebaysf.bluewhale.util;
 
 import com.google.common.base.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,6 +18,8 @@ import java.util.Random;
  * To change this template use File | Settings | File Templates.
  */
 public class Files {
+
+    private static final Logger LOG = LoggerFactory.getLogger(Files.class);
 
     private static final Random _random = new Random(System.currentTimeMillis());
     
@@ -58,16 +62,20 @@ public class Files {
     public static void freeUpBuffer(final ByteBuffer bufferNoLongerUsed) {
 
         Preconditions.checkArgument(bufferNoLongerUsed.isDirect(), "bufferNoLongerUsed isn't direct!");
+
         try {
+
             Method cleanerMethod = bufferNoLongerUsed.getClass().getMethod("cleaner");
             cleanerMethod.setAccessible(true);
             Object cleaner = cleanerMethod.invoke(bufferNoLongerUsed);
             Method cleanMethod = cleaner.getClass().getMethod("clean");
             cleanMethod.setAccessible(true);
             cleanMethod.invoke(cleaner);
+
         }
         catch (Exception e) {
-            e.printStackTrace();
+
+            LOG.error("byte buffer immediate cleanup failed", e);
         }
     }
 }

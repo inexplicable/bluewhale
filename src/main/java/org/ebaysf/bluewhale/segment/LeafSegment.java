@@ -2,7 +2,6 @@ package org.ebaysf.bluewhale.segment;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.google.common.base.Throwables;
 import com.google.common.cache.AbstractCache;
 import com.google.common.cache.RemovalCause;
 import com.google.common.collect.Collections2;
@@ -21,6 +20,8 @@ import org.ebaysf.bluewhale.event.*;
 import org.ebaysf.bluewhale.serialization.Serializer;
 import org.ebaysf.bluewhale.storage.BinStorage;
 import org.javatuples.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,14 +30,13 @@ import java.nio.LongBuffer;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.logging.Logger;
 
 /**
  * Created by huzhou on 2/28/14.
  */
 public class LeafSegment extends AbstractSegment {
 
-    private static final Logger LOG = Logger.getLogger(LeafSegment.class.getName());
+    private static final Logger LOG = LoggerFactory.getLogger(LeafSegment.class);
 
     private final transient ByteBuffer _mmap;
     private final transient LongBuffer _tokens;
@@ -146,7 +146,7 @@ public class LeafSegment extends AbstractSegment {
                 return token >= 0 && using(suspect.getKey(), token, suspect.getLastModified());
             }
             catch (IOException e) {
-                LOG.warning(Throwables.getStackTraceAsString(e));
+                LOG.error("usage tracking failed", e);
                 return true;
             }
         }
@@ -171,7 +171,7 @@ public class LeafSegment extends AbstractSegment {
                 put(new PutAsRefresh(origin.getKey(), origin.getValue(), origin.getHashCode(), origin.getState()));
             }
             catch (IOException e) {
-                LOG.warning(Throwables.getStackTraceAsString(e));
+                LOG.error("refresh document failed", e);
             }
         }
         else{
@@ -297,7 +297,7 @@ public class LeafSegment extends AbstractSegment {
 
     protected void split() throws IOException {
 
-        LOG.fine("[segment] split into lower & upper");
+        LOG.debug("[segment] split into lower & upper");
 
         final int lowerBound = range().lowerEndpoint();
         final int upperBound = range().upperEndpoint();
@@ -375,7 +375,7 @@ public class LeafSegment extends AbstractSegment {
                 }
             }
             catch (IOException e) {
-                LOG.warning(Throwables.getStackTraceAsString(e));
+                LOG.error("removal notification failed", e);
             }
         }
     }
@@ -385,7 +385,7 @@ public class LeafSegment extends AbstractSegment {
 
         if(event.getSource() == this){
 
-            LOG.info(String.format("[segment] split occurred %s -> %s,%s", this, _lower, _upper));
+            LOG.info("[segment] {} => {} & {}", this, _lower, _upper);
             _manager.freeUpBuffer(Pair.with(local(), _mmap));
         }
     }
@@ -398,7 +398,7 @@ public class LeafSegment extends AbstractSegment {
 
         if(abandons.contains(this)){
 
-            LOG.info("[segment] invalidate all");
+            LOG.info("[segment] invalidate all happens");
             configuration().getEventBus().unregister(this);
             _manager.freeUpBuffer(Pair.with(local(), _mmap));
         }
@@ -409,7 +409,7 @@ public class LeafSegment extends AbstractSegment {
 
         if(event.getSource() == this){
 
-            LOG.fine("[segment] path too long, optimization triggered");
+            LOG.debug("[segment] path too long, optimization triggered");
 
             final int offset = event.getOffset();
             final long headTokenExpected = event.getHeadToken();
@@ -463,7 +463,7 @@ public class LeafSegment extends AbstractSegment {
 
             }
             catch(IOException e){
-                LOG.warning(Throwables.getStackTraceAsString(e));
+                LOG.error("path shortening failed", e);
             }
         }
     }

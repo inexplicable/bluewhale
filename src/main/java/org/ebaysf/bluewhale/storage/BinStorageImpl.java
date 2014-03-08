@@ -1,7 +1,9 @@
 package org.ebaysf.bluewhale.storage;
 
 import com.google.common.base.Objects;
-import com.google.common.base.*;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.base.Supplier;
 import com.google.common.cache.RemovalCause;
 import com.google.common.collect.*;
 import com.google.common.eventbus.EventBus;
@@ -13,7 +15,10 @@ import org.ebaysf.bluewhale.document.BinDocumentFactory;
 import org.ebaysf.bluewhale.event.PersistenceRequiredEvent;
 import org.ebaysf.bluewhale.event.PostExpansionEvent;
 import org.ebaysf.bluewhale.event.PostInvestigationEvent;
+import org.ebaysf.bluewhale.event.RequestInvestigationEvent;
 import org.javatuples.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -24,7 +29,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Logger;
 
 /**
  * Created by huzhou on 2/27/14.
@@ -39,7 +43,7 @@ public class BinStorageImpl implements BinStorage {
         }
     };
 
-    private static final Logger LOG = Logger.getLogger(BinStorageImpl.class.getName());
+    private static final Logger LOG = LoggerFactory.getLogger(BinStorageImpl.class);
 
     private final transient Configuration _configuration;
     private final transient EventBus _eventBus;
@@ -170,7 +174,7 @@ public class BinStorageImpl implements BinStorage {
             }
         });
 
-        LOG.info(String.format("[storage] iteration ordered:%s", orderedByLastModified));
+        LOG.debug("[storage] iteration ordered: {}", orderedByLastModified);
         return orderedByLastModified.iterator();
     }
 
@@ -198,7 +202,7 @@ public class BinStorageImpl implements BinStorage {
                     }
                 }
                 catch (IOException e) {
-                    LOG.warning(Throwables.getStackTraceAsString(e));
+                    LOG.error("cold cache warm up failed", e);
                 }
 
                 if(warm != null){
@@ -240,7 +244,7 @@ public class BinStorageImpl implements BinStorage {
 
         _journaling = writable;
 
-        LOG.info(String.format("[storage] new writable created, navigableJournals updated:%s", _navigableJournals));
+        LOG.info("[storage] new writable created, navigableJournals updated: {}", _navigableJournals);
     }
 
     protected BinJournal downgrade(final BinJournal journal) throws FileNotFoundException {
@@ -251,7 +255,7 @@ public class BinStorageImpl implements BinStorage {
         //it only takes effect after the journal using the buffer gets garbage collected
         _manager.freeUpBuffer(journal.getMemoryMappedBuffer());
 
-        LOG.info(String.format("[storage] downgrade journal:%s to FileChannelBinJournal", journal));
+        LOG.info("[storage] downgrade journal:{} to FileChannelBinJournal", journal);
 
         return new FileChannelBinJournal(journal.local(),
                 journal.range(),
@@ -286,7 +290,7 @@ public class BinStorageImpl implements BinStorage {
     @Subscribe
     public void postExpansion(final PostExpansionEvent event) {
 
-        LOG.info("[storage] post expansion handling");
+        LOG.debug("[storage] post expansion processing");
 
         final BinJournal previous = event.getPreviousWritable();
         //lots of work here:
@@ -323,7 +327,7 @@ public class BinStorageImpl implements BinStorage {
 
         //check for downgrades
         int downgrades = memoryMappedJournals.size() - getMaxMemoryMappedJournals() + 1;
-        LOG.info(String.format("[storage] downgrades:%d memoryMappedJournals", downgrades));
+        LOG.info("[storage] downgrades:{} memoryMappedJournals", downgrades);
         for(Iterator<Map.Entry<Range<Integer>, BinJournal>> it = memoryMappedJournals.entrySet().iterator(); it.hasNext() && downgrades > 0; downgrades -= 1){
 
             final Map.Entry<Range<Integer>, BinJournal> entry = it.next();
@@ -331,7 +335,7 @@ public class BinStorageImpl implements BinStorage {
                 navigableBuilder.put(entry.getKey(), downgrade(entry.getValue()));
             }
             catch (FileNotFoundException e) {
-                LOG.warning(Throwables.getStackTraceAsString(e));
+                LOG.error("downgrade failed", e);
             }
         }
 
@@ -344,80 +348,88 @@ public class BinStorageImpl implements BinStorage {
 
         _navigableJournals = navigableBuilder.build();
         _dangerousJournals = dangerBuilder.build(); //rebuild dangerous journals set
+
         _eventBus.post(new PersistenceRequiredEvent(this));
+        _eventBus.post(new RequestInvestigationEvent(this));
+    }
 
-        if(_openInvestigation == null){
-            //there're cannot be 2 open investigations at the same time, too much cost
-            _openInvestigation = _executor.submit(new Runnable() {
+    @Subscribe
+    public void onRequestedInvestigation(final RequestInvestigationEvent event) {
 
-                public @Override void run() {
+        if(_openInvestigation != null || event.getSource() != this){
+            return;
+        }
 
-                    final ListMultimap<InspectionReport, BinJournal> investigation = Multimaps.newListMultimap(
-                            Maps.<InspectionReport, Collection<BinJournal>>newHashMap(),
-                            new Supplier<List<BinJournal>>() {
-                                public @Override List<BinJournal> get() {
-                                    return Lists.newLinkedList();
-                                }
-                            });
+        //there're cannot be 2 open investigations at the same time, too much cost
+        _openInvestigation = _executor.submit(new Runnable() {
 
-                    int forced = _navigableJournals.asMapOfRanges().size() - getMaxJournals();
+            public @Override void run() {
 
-                    for(BinJournal journal : BinStorageImpl.this){
-
-                        if(!journal.currentState().isMemoryMapped()){
-
-                            if((forced -= 1) >= 0){
-                                LOG.info(String.format("[storage] forced out aging journal:%s", journal));
-                                investigation.put(InspectionReport.EvictionRequiredBySize, journal);
-                                continue;
+                final ListMultimap<InspectionReport, BinJournal> investigation = Multimaps.newListMultimap(
+                        Maps.<InspectionReport, Collection<BinJournal>>newHashMap(),
+                        new Supplier<List<BinJournal>>() {
+                            public @Override List<BinJournal> get() {
+                                return Lists.newLinkedList();
                             }
+                        });
 
-                            if(expired(journal)){
-                                LOG.info(String.format("[storage] expired aging journal:%s", journal));
-                                investigation.put(InspectionReport.EvictionRequiredByTTL, journal);
-                                continue;
+                int forced = _navigableJournals.asMapOfRanges().size() - getMaxJournals();
+
+                for(BinJournal journal : BinStorageImpl.this){
+
+                    if(!journal.currentState().isMemoryMapped()){
+
+                        if((forced -= 1) >= 0){
+                            LOG.info("[storage] forced out aging journal: {}", journal);
+                            investigation.put(InspectionReport.EvictionRequiredBySize, journal);
+                            continue;
+                        }
+
+                        if(expired(journal)){
+                            LOG.info("[storage] expired aging journal: {}", journal);
+                            investigation.put(InspectionReport.EvictionRequiredByTTL, journal);
+                            continue;
+                        }
+
+                        LOG.info("[storage] make investigation on aging journal: {}", journal);
+
+                        final JournalUsage usage = journal.usage();
+                        final SparseBitSet alives = usage.getAlives();
+                        int index = 0;
+
+                        for(Iterator<BinDocument> it = journal.iterator(); it.hasNext(); index += 1){
+                            final BinDocument suspect = it.next();
+                            if(alives.get(index)){
+                                alives.set(index, _usageTrack.using(suspect));
                             }
-
-                            LOG.info(String.format("[storage] make investigation on aging journal:%s", journal));
-
-                            final JournalUsage usage = journal.usage();
-                            final SparseBitSet alives = usage.getAlives();
-                            int index = 0;
-
-                            for(Iterator<BinDocument> it = journal.iterator(); it.hasNext(); index += 1){
-                                final BinDocument suspect = it.next();
-                                if(alives.get(index)){
-                                    alives.set(index, _usageTrack.using(suspect));
-                                }
-                                if(usage.isUsageRatioAbove(_configuration.getLeastJournalUsageRatio())){
-                                    break;//no more investigation needed upon this journal till next time.
-                                }
-                            }
-
-                            if(usage.isAllDead()){
-                                investigation.put(InspectionReport.EvictionRequiredBySize, journal);
-                            }
-                            else if(!usage.isUsageRatioAbove(_configuration.getLeastJournalUsageRatio())){
-                                investigation.put(InspectionReport.CompressionRequired, journal);
-                            }
-                            else{
-                                investigation.put(InspectionReport.RemainAsIs, journal);
+                            if(usage.isUsageRatioAbove(_configuration.getLeastJournalUsageRatio())){
+                                break;//no more investigation needed upon this journal till next time.
                             }
                         }
+
+                        if(usage.isAllDead()){
+                            investigation.put(InspectionReport.EvictionRequiredBySize, journal);
+                        }
+                        else if(!usage.isUsageRatioAbove(_configuration.getLeastJournalUsageRatio())){
+                            investigation.put(InspectionReport.CompressionRequired, journal);
+                        }
+                        else{
+                            investigation.put(InspectionReport.RemainAsIs, journal);
+                        }
                     }
-
-                    LOG.info(String.format("[storage] investigation completed:%s", investigation));
-
-                    _eventBus.post(new PostInvestigationEvent(investigation));
                 }
 
-                private boolean expired(final BinJournal journal) {
-                    final Pair<Long, TimeUnit> ttl = _configuration.getTTL();
-                    return ttl != null
-                            && System.nanoTime() - journal.usage().getLastModified() > ttl.getValue1().toNanos(ttl.getValue0().longValue());
-                }
-            });
-        }
+                LOG.info("[storage] investigation finished, report: {}", investigation);
+
+                _eventBus.post(new PostInvestigationEvent(investigation));
+            }
+
+            private boolean expired(final BinJournal journal) {
+                final Pair<Long, TimeUnit> ttl = _configuration.getTTL();
+                return ttl != null
+                        && System.nanoTime() - journal.usage().getLastModified() > ttl.getValue1().toNanos(ttl.getValue0().longValue());
+            }
+        });
     }
 
     @Subscribe
@@ -425,7 +437,7 @@ public class BinStorageImpl implements BinStorage {
         try {
             final ListMultimap<InspectionReport, BinJournal> report = event.getSource();
 
-            LOG.info(String.format("[storage] investigation report:%s to be handled", report));
+            LOG.info("[storage] processing investigation report: {}", report);
             final Set<Range<Integer>> exclusions = Sets.newIdentityHashSet();
             for(BinJournal journal : Objects.firstNonNull(report.get(InspectionReport.EvictionRequiredBySize), Collections.<BinJournal>emptyList())){
                 for(BinDocument evict: journal){
@@ -479,7 +491,7 @@ public class BinStorageImpl implements BinStorage {
 
         }
         catch(Exception ex){
-            LOG.warning(Throwables.getStackTraceAsString(ex));
+            LOG.error("investigation processing failed", ex);
         }
         finally {
             _lock.unlock();

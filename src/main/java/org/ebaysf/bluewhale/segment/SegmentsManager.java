@@ -1,7 +1,6 @@
 package org.ebaysf.bluewhale.segment;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.cache.RemovalCause;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
@@ -13,6 +12,8 @@ import org.ebaysf.bluewhale.storage.BinStorage;
 import org.ebaysf.bluewhale.util.Files;
 import org.ebaysf.bluewhale.util.Maps;
 import org.javatuples.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -23,14 +24,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.logging.Logger;
 
 /**
  * Manages Segments' Life cycles, mainly the DirectByteBuffers.
  */
 public class SegmentsManager {
 
-	private static final Logger LOG = Logger.getLogger(SegmentsManager.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(SegmentsManager.class);
 
     private final Configuration _configuration;
     private final int _spanAtLeast;
@@ -55,7 +55,7 @@ public class SegmentsManager {
         _spanAtLeast = Math.max(1, Segment.MAX_SEGMENTS >> (configuration.getConcurrencyLevel() + configuration.getMaxSegmentDepth()));
         _availableBuffers = new ConcurrentLinkedQueue<Pair<File, ByteBuffer>>();
 
-        LOG.info(String.format("[segment manager] spanAtLeast:%d\n", _spanAtLeast));
+        LOG.debug("[segment manager] spanAtLeast: {}", _spanAtLeast);
     }
 
     public Pair<File, ByteBuffer> allocateBuffer() throws IOException {
@@ -152,12 +152,12 @@ public class SegmentsManager {
             if(SegmentsManager.this._availableBuffers.size() <= 1){
                 try {
                     //offer 2 instead of one
-                    LOG.fine("[predicting]");
+                    LOG.debug("allocate segment buffer ahead");
                     SegmentsManager.this._availableBuffers.offer(newBuffer());
                     SegmentsManager.this._availableBuffers.offer(newBuffer());
                 }
                 catch (Exception e) {
-                    LOG.warning(Throwables.getStackTraceAsString(e));
+                    LOG.error("allocate segment buffer ahead failed", e);
                 }
             }
         }
@@ -174,12 +174,14 @@ public class SegmentsManager {
         }
 
         public @Override void run(){
-            LOG.fine("[releasing][segment][buffer]");
+
+            LOG.debug("releasing segment buffer");
+
             if(_buffersUsedBySegments.getIfPresent(_buffer) == null){
                 freeUp();
             }
             else{
-                LOG.fine("[release deferred][segment][buffer]" + _buffer);
+                LOG.debug("release segment buffer: {} delayed for segment still in use", _buffer);
             }
         }
 
@@ -196,7 +198,7 @@ public class SegmentsManager {
             resetTokens(_buffer.getValue1().asLongBuffer());
             _availableBuffers.offer(_buffer);
 
-            LOG.fine("[released][segment][buffer]");
+            LOG.debug("release segment buffer: {} eventually", _buffer);
         }
     }
 

@@ -2,7 +2,6 @@ package org.ebaysf.bluewhale;
 
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.cache.*;
 import com.google.common.collect.ImmutableRangeMap;
 import com.google.common.collect.Range;
@@ -23,6 +22,8 @@ import org.ebaysf.bluewhale.storage.BinJournal;
 import org.ebaysf.bluewhale.storage.BinStorage;
 import org.ebaysf.bluewhale.storage.BinStorageImpl;
 import org.ebaysf.bluewhale.storage.UsageTrack;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -31,14 +32,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.logging.Logger;
 
 /**
  * Created by huzhou on 2/28/14.
  */
 public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>, UsageTrack {
 
-    private static final Logger LOG = Logger.getLogger(CacheImpl.class.getName());
+    private static final Logger LOG = LoggerFactory.getLogger(CacheImpl.class);
 
     private final Configuration _configuration;
     private final transient SegmentsManager _manager;
@@ -93,7 +93,7 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
             return zone.get(new GetImpl(key, null, hashCode, false, _statsCounter));
         }
         catch (Exception ex) {
-            LOG.warning(Throwables.getStackTraceAsString(ex));
+            LOG.error("get if present failed", ex);
             return null;
         }
     }
@@ -110,7 +110,7 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
             return zone.get(new GetImpl(key, valueLoader, hashCode, true, _statsCounter));
         }
         catch (Exception ex) {
-            LOG.warning(Throwables.getStackTraceAsString(ex));
+            LOG.error("get with value loader failed", ex);
             return null;
         }
     }
@@ -127,7 +127,7 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
             zone.put(new PutAsIs(key, value, hashCode, System.nanoTime()));
         }
         catch (Exception ex) {
-            LOG.warning(Throwables.getStackTraceAsString(ex));
+            LOG.error("put failed", ex);
         }
     }
 
@@ -143,7 +143,7 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
             zone.put(new PutAsInvalidate(key, hashCode, System.nanoTime()));
         }
         catch (Exception ex) {
-            LOG.warning(Throwables.getStackTraceAsString(ex));
+            LOG.error("invalidate failed", ex);
         }
     }
 
@@ -155,8 +155,8 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
             //the fastest way to invalidate everything is to wipe the segments clean.
             _navigableSegments = _manager.initSegments(Collections.<Segment>emptyList(), _storage);
         }
-        catch (IOException e) {
-            LOG.warning(Throwables.getStackTraceAsString(e));
+        catch (IOException ex) {
+            LOG.error("invalidate all failed", ex);
         }
 
         _configuration.getEventBus().post(new PostInvalidateAllEvent(abandons, this));
@@ -224,12 +224,7 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
 
         final List<Segment> after = event.after();
         for(Segment child : after){
-            try{
-                modifying.put(child.range(), child);
-            }
-            catch(Exception e){
-                LOG.warning(Throwables.getStackTraceAsString(e));
-            }
+            modifying.put(child.range(), child);
         }
 
         _navigableSegments = modifying.build();

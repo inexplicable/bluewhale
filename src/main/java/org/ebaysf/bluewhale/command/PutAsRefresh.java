@@ -1,20 +1,20 @@
 package org.ebaysf.bluewhale.command;
 
-import com.google.common.base.Throwables;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.document.BinDocumentRaw;
 import org.ebaysf.bluewhale.serialization.Serializer;
 import org.ebaysf.bluewhale.serialization.Serializers;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
-import java.util.logging.Logger;
 
 /**
  * Created by huzhou on 3/4/14.
  */
 public class PutAsRefresh implements Put {
 
-    private static final Logger LOG = Logger.getLogger(PutAsRefresh.class.getName());
+    private static final Logger LOG = LoggerFactory.getLogger(PutAsRefresh.class);
     private static final byte COMPRESSED_OR_TOMBSTONE = BinDocument.COMPRESSED | BinDocument.TOMBSTONE;
 
     private final ByteBuffer _keyAsByteBuffer;
@@ -41,7 +41,7 @@ public class PutAsRefresh implements Put {
                 return;
             }
             catch(Exception e) {
-                LOG.warning(Throwables.getStackTraceAsString(e));
+                LOG.error("compression failed", e);
             }
         }
 

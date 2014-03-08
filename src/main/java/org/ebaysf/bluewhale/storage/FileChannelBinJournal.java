@@ -1,7 +1,6 @@
 package org.ebaysf.bluewhale.storage;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Range;
 import com.google.common.eventbus.Subscribe;
@@ -10,6 +9,8 @@ import com.google.common.primitives.Longs;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.document.BinDocumentFactory;
 import org.ebaysf.bluewhale.event.DocumentLengthAnticipatedEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -20,14 +21,13 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.Iterator;
 import java.util.PriorityQueue;
-import java.util.logging.Logger;
 
 /**
  * Created by huzhou on 2/27/14.
  */
 public class FileChannelBinJournal extends AbstractBinJournal {
 
-    private static final Logger LOG = Logger.getLogger(FileChannelBinJournal.class.getName());
+    private static final Logger LOG = LoggerFactory.getLogger(FileChannelBinJournal.class);
 
     protected final transient RandomAccessFile _raf;
     protected final transient FileChannel _fch;
@@ -56,7 +56,7 @@ public class FileChannelBinJournal extends AbstractBinJournal {
 
                     final BinJournal self = FileChannelBinJournal.this;
 
-                    LOG.info("[anticipating] ".concat(self.toString()));
+                    LOG.debug("[anticipating] {}'s document length", self);
                     //use average length 1st, we'll then use 90% or better to find a better idea.
                     final int mostLengthy = IntMath.divide(self.getDocumentSize() * 9, 10, RoundingMode.FLOOR);
                     Preconditions.checkState(mostLengthy > 0);
@@ -78,11 +78,10 @@ public class FileChannelBinJournal extends AbstractBinJournal {
                     }
                     //return the least/head of the minHeap, which is larger than 90% of the documents in this journal
                     final Integer greaterThan90Percents =  minHeap.poll().intValue();
-                    LOG.info(new StringBuilder()
-                            .append("[anticipated] ").append(self).append(" will use:")
-                            .append(greaterThan90Percents).append(" Bytes for future reads").toString());
+                    _manager.getEventBus().post(
+                            new DocumentLengthAnticipatedEvent(self, greaterThan90Percents.intValue()));
 
-                    _manager.getEventBus().post(new DocumentLengthAnticipatedEvent(FileChannelBinJournal.this, greaterThan90Percents.intValue()));
+                    LOG.info("[anticipated] {} will use {} bytes for future reads", self, greaterThan90Percents);
                 }
             });
         }
@@ -112,7 +111,7 @@ public class FileChannelBinJournal extends AbstractBinJournal {
             return new BinDocumentBlockIterator(0);
         }
         catch(IOException e){
-            LOG.warning(Throwables.getStackTraceAsString(e));
+            LOG.error("iterate documents failed", e);
             return Iterators.emptyIterator();
         }
     }
@@ -190,7 +189,7 @@ public class FileChannelBinJournal extends AbstractBinJournal {
                 }
             }
             catch (IOException e) {
-                LOG.warning(Throwables.getStackTraceAsString(e));
+                LOG.error("read next document failed", e);
             }
             return null;
         }

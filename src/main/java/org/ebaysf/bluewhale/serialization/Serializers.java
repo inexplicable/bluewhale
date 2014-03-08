@@ -7,11 +7,12 @@ import com.dyuproject.protostuff.runtime.RuntimeSchema;
 import com.google.common.base.Charsets;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.primitives.Chars;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.google.common.primitives.Shorts;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xerial.snappy.Snappy;
 
 import java.io.ByteArrayOutputStream;
@@ -19,11 +20,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.logging.Logger;
 
 public abstract class Serializers {
 
-	private static final Logger LOG = Logger.getLogger(Serializer.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(Serializers.class);
 	
 	public static abstract class AbstractBinComparableSerializer<E> implements Serializer<E> {
 		
@@ -79,7 +79,7 @@ public abstract class Serializers {
 				ProtobufIOUtil.writeTo(bos, object, _schema, LinkedBuffer.allocate(LinkedBuffer.DEFAULT_BUFFER_SIZE));
 			}
 			catch (IOException e) {
-				LOG.warning(Throwables.getStackTraceAsString(e));
+				LOG.error("protobuf serialization failed", e);
 			}	
 			return ByteBuffer.wrap(bos.toByteArray());
 		}
@@ -97,7 +97,7 @@ public abstract class Serializers {
 				return object;
 			} 
 			catch (IOException e) {
-				LOG.warning(Throwables.getStackTraceAsString(e));
+				LOG.error("protobuf deserialization failed", e);
 			}
 			return null;
 		}
@@ -178,7 +178,7 @@ public abstract class Serializers {
 				binaries = compressed ? uncompress(binaries) : binaries;
 			} 
 			catch (IOException e) {
-				LOG.warning(Throwables.getStackTraceAsString(e));
+				LOG.error("boolean decompression failed", e);
 			}
 			return binaries.duplicate().equals(TRUE.duplicate()) ? Boolean.TRUE : Boolean.FALSE;
 		}
@@ -195,7 +195,7 @@ public abstract class Serializers {
 				binaries = compressed ? uncompress(binaries) : binaries.duplicate();
 			} 
 			catch (IOException e) {
-				LOG.warning(Throwables.getStackTraceAsString(e));
+				LOG.error("byte decompression failed", e);
 			}
 			return Byte.valueOf(binaries.get());
 		}
@@ -215,7 +215,7 @@ public abstract class Serializers {
 				binaries = compressed ? uncompress(binaries) : binaries.duplicate();
 			} 
 			catch (IOException e) {
-				LOG.warning(Throwables.getStackTraceAsString(e));
+				LOG.error("short decompression failed", e);
 			}
 			return binaries.getShort();
 		}
@@ -235,7 +235,7 @@ public abstract class Serializers {
 				binaries = compressed ? uncompress(binaries) : binaries.duplicate();
 			} 
 			catch (IOException e) {
-				LOG.warning(Throwables.getStackTraceAsString(e));
+				LOG.error("int decompression failed", e);
 			}
 			return binaries.getInt();
 		}
@@ -255,7 +255,7 @@ public abstract class Serializers {
 				binaries = compressed ? uncompress(binaries) : binaries.duplicate();
 			} 
 			catch (IOException e) {
-				LOG.warning(Throwables.getStackTraceAsString(e));
+				LOG.error("long decompression failed", e);
 			}
 			return binaries.getLong();
 		}
@@ -275,7 +275,7 @@ public abstract class Serializers {
 				binaries = compressed ? uncompress(binaries) : binaries.duplicate();
 			} 
 			catch (IOException e) {
-				LOG.warning(Throwables.getStackTraceAsString(e));
+				LOG.error("char decompression failed", e);
 			}
 			return Character.valueOf(binaries.getChar());
 		}
@@ -294,7 +294,7 @@ public abstract class Serializers {
 				binaries = compressed ? uncompress(binaries) : binaries.duplicate();
 			} 
 			catch (IOException e) {
-				LOG.warning(Throwables.getStackTraceAsString(e));
+				LOG.error("string decompression failed", e);
 			}
             if(!binaries.isDirect()){
 			    return new String(binaries.array(), binaries.position(), binaries.remaining(), Charsets.UTF_8);
@@ -320,7 +320,7 @@ public abstract class Serializers {
 				binaries = compressed ? uncompress(binaries) : binaries.duplicate();
 			} 
 			catch (IOException e) {
-				LOG.warning(Throwables.getStackTraceAsString(e));
+				LOG.error("byte array decompression failed", e);
 			}
             if(!binaries.isDirect()){
 			    return Arrays.copyOfRange(binaries.array(), binaries.position(), binaries.position() + binaries.remaining());

@@ -18,12 +18,13 @@ import org.ebaysf.bluewhale.storage.JournalUsage;
 import org.ebaysf.bluewhale.storage.JournalUsageImpl;
 import org.ebaysf.bluewhale.util.Files;
 import org.javatuples.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -32,7 +33,7 @@ import java.util.regex.Pattern;
  */
 public abstract class Gsons {
 
-    private static final Logger LOG = Logger.getLogger(Gsons.class.getName());
+    private static final Logger LOG = LoggerFactory.getLogger(Gsons.class);
 
     private static final GsonBuilder _gsonBuilder = new GsonBuilder()
             .serializeNulls()
@@ -311,7 +312,7 @@ public abstract class Gsons {
         final File cold = Files.newCacheFile(local);
 
         final String json = GSON.toJson(cache);
-        LOG.info(json);
+        LOG.info("persistence result: {}", json);
 
         com.google.common.io.Files.write(json, cold, Charsets.UTF_8);
 

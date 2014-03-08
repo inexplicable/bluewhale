@@ -9,6 +9,8 @@ import org.ebaysf.bluewhale.configurable.Configuration;
 import org.ebaysf.bluewhale.util.Files;
 import org.ebaysf.bluewhale.util.Maps;
 import org.javatuples.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,14 +18,13 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.logging.Logger;
 
 /**
  * Manages journals' Life cycles, mainly the DirectByteBuffers.
  */
 public class JournalsManager {
 
-	private static final Logger LOG = Logger.getLogger(JournalsManager.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(JournalsManager.class);
 
     private final Configuration _configuration;
 
@@ -97,12 +98,13 @@ public class JournalsManager {
         }
 
         public @Override void run(){
-            LOG.fine("[releasing][journal][buffer]");
+            LOG.debug("releasing journal buffer");
+
             if(_buffersUsedByJournals.getIfPresent(_buffer) == null){
                 freeUp();
             }
             else{
-                LOG.fine("[release deferred][journal][buffer]" + _buffer);
+                LOG.debug("release journal buffer: {} delayed", _buffer);
             }
         }
 
@@ -119,7 +121,7 @@ public class JournalsManager {
 
             Files.freeUpBuffer(_buffer);
 
-            LOG.fine("[released][journal][buffer]");
+            LOG.debug("journal buffer: {} released eventually", _buffer);
         }
     }
 

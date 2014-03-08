@@ -17,6 +17,7 @@ public class PostInvestigationEvent extends EventObject {
     }
 
     public @Override ListMultimap<BinStorage.InspectionReport, BinJournal> getSource(){
+
         return (ListMultimap<BinStorage.InspectionReport, BinJournal>)super.getSource();
     }
 }
