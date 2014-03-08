@@ -58,13 +58,12 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
         _removalListener = Preconditions.checkNotNull(removalListener);
 
         _manager = new SegmentsManager(_configuration);
-        _storage = new BinStorageImpl(_configuration, coldJournals, this);
-        _statsCounter = new SimpleStatsCounter();
+        _storage = new BinStorageImpl(_configuration, Preconditions.checkNotNull(coldJournals), this);
 
+        _statsCounter = new SimpleStatsCounter();
         _configuration.getEventBus().register(this);
 
-        _navigableSegments = _manager.initSegments(
-                Objects.firstNonNull(coldSegments, Collections.<Segment>emptyList()), _storage);
+        _navigableSegments = _manager.initSegments(Preconditions.checkNotNull(coldSegments), _storage);
     }
 
     public @Override Configuration getConfiguration() {
