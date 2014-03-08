@@ -146,13 +146,12 @@ public abstract class AbstractSegment implements Segment {
 
     public @Override String toString(){
         return new StringBuilder()
-                .append("[segment]")
+                .append("segment=")
                 .append(_range)
-                .append("[leaf:")
+                .append("&leaf=")
                 .append(isLeaf())
-                .append("][size:")
-                .append(size())
-                .append("]").toString();
+                .append("&size=")
+                .append(size()).toString();
     }
 
     public static int getSegmentCode(final int hashCode) {
