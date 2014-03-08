@@ -34,20 +34,11 @@ readseq      :     1.09180 micros/op;  101.3 MB/s
 ```
 
 # Followings are the supported features:
-* Guava Cache API supported features except for #asMap (guess why)
-* RemovalNotification
-* Max Journals (storage) limit
-* Max MemoryMapped Journals (RAM) limit
-* Max Segment Depth (concurrency) limit
-* Eviction when size maxed out (LRW)
-* Compression and compaction of old journals
-* Files cleanup on close
-* Simple Stats
-* LRU and other injectable eviction strategy
-* TTL
-* Cache Builder semantics
-* Cold cache
-* Checksum document factory as an option
+* Guava Cache API supported features except for #asMap (guess why, and you do have CacheBuilder, TTL, stats, removal notification etc.)
+* LRW | LRU eviction strategy
+* RAM, Disk consumption constraints
+* Transient or Persistent caching based on configuration
+* Data Integrity protection via optional binary document checksum
 
 # Developer Notes:
 * The primary API of the bluewhale caching is `org.ebaysf.bluewhale.Cache` and `org.ebaysf.bluewhale.configurable.CacheBuilder` similar to `com.google.common.cache.*`
@@ -62,7 +53,7 @@ readseq      :     1.09180 micros/op;  101.3 MB/s
 # Configurations:
 * __key__ `Serializer` must be provided, check `org.ebaysf.bluewhale.serialization.Serializers` for existing types' support.
 * __value__ `Serializer` must be provided.
-* __concurrencyLevel__ `int` manages the number of `Segment` to be initialized, default value is `2`, which creates `2 << 3 = 8` segments
+* __concurrencyLevel__ `int` manages the number of `Segment` to be initialized, default value is `3`, which creates `2 << 3 = 8` segments
 * __maxSegmentDepth__ `int` manages the width of `Segment`, default value is `2`, which means each `Segment` initialized cannot be splitted more than `2` times
 * __maxPathDepth__ `int` manages the depth of `Path`, default value is `7`, which triggers a `Path` shorten request whenever a `Path` is deeper than `7`
 * __factory__ `BinDocumentFactory` is the factory class to create `BinDocument`s, default is `BinDocumentFactories.RAW` which creates `BinDocumentRaw` implementations with no checksums.
