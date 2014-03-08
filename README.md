@@ -1,11 +1,10 @@
 bluewhale
 =========
 
-This is a Guava compliant caching implementation, mainly focused on larger volume of local caching without painful JVM GCs.
+This is a Guava compliant caching implementation, mainly focused on large volume in process caching with minimal GC overhead.
 It's based on MemoryMapped files, and inspired by Bitcask (Erlang) & LevelDB (C++) while remaining purely in Java.
 
-The sequential writes allow us to get write performance around 1ms for 100bytes key/value
-The lock free reads allow us to get read performance around 1ms whether sequential or random
+The sequential writes allow us to get write performance around 3μs for 100bytes key/value. The lock free reads allow us to get read performance around 2μs whether sequential or random
 
 Yet production ready, try at your own risk; Well, first batch of results coming out:
 
@@ -54,10 +53,11 @@ readseq      :     1.09180 micros/op;  101.3 MB/s
 * The primary API of the bluewhale caching is `org.ebaysf.bluewhale.Cache` and `org.ebaysf.bluewhale.configurable.CacheBuilder` similar to `com.google.common.cache.*`
 * Functional wise, bluewhale caching is mostly compliant with Guava's Cache, but you must provide the key/value `org.ebaysf.bluewhale.serialization.Serializer` in addition.
 * And there's various configurations you could tune based on `org.ebaysf.bluewhale.configurable.Configuration`, more details will be explained below.
-* The structure of bluewhale caching is simple, a `RangeMap<Integer, Segment>`, and a `RangeMap<Integer, BinJournal>` at the essence of it.
+* The structure of bluewhale caching is simple, a `com.google.common.collect.RangeMap<Integer, Segment>`, and a `com.google.common.collect.RangeMap<Integer, BinJournal>` at the essence of it.
 * A `Segment` is conceptually a `long[]`, hashCode is broken to `segmentCode` and `segmentOffset` to fetch a long value from the corresponding `Segment`.
 * The long value is broken to `journalCode` and `journalOffset` similarly, pointing to a `BinDocument` stored in some `BinJournal`.
 * The `BinDocument` read contains the serialized `key`, `value`, `hashCode`, etc. which requires the same `Serializer` to deserialize it to the expected value type.
+* Cold cache is supported via `org.ebaysf.bluewhale.persistence.*`, using GSON to manifest `Segment` and `Journal` in readable json format, and allow a load back from the same file it writes to whenever there's any structural change.
 
 # Configurations:
 * __key__ `Serializer` must be provided, check `org.ebaysf.bluewhale.serialization.Serializers` for existing types' support.
