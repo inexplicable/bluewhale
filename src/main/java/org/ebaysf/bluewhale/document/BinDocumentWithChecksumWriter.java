@@ -13,52 +13,19 @@ import java.nio.ByteBuffer;
  * 2. 4 bytes int <=> length of value
  * 3. 8 bytes long <=> next
  * 4. 4 bytes int <=> hashCode
- * 5. 8 bytes long <=> last modified time
- * 7. byte[length of key] <=> key bytes
- * 8. byte[length of value] <=> value bytes
+ * 5. byte[length of key] <=> key bytes
+ * 6. byte[length of value] <=> value bytes
+ * 7. 8 bytes long <=> last modified time
+ * 8. 8 bytes long <=> CRC32 checksum
  */
-public class BinDocumentRawWriter implements BinDocumentFactory.BinDocumentWriter {
+public class BinDocumentWithChecksumWriter extends BinDocumentRawWriter {
 
-    private final BinDocument _doc;
-
-    public BinDocumentRawWriter(final BinDocument doc) {
-        _doc = doc;
-    }
-
-    public @Override ByteBuffer getKey() {
-        return _doc.getKey();
-    }
-
-    public @Override ByteBuffer getValue() {
-        return _doc.getValue();
-    }
-
-    public @Override int getHashCode() {
-        return _doc.getHashCode();
-    }
-
-    public @Override long getNext() {
-        return _doc.getNext();
-    }
-
-    public @Override long getLastModified() {
-        return _doc.getLastModified();
-    }
-
-    public @Override byte getState() {
-        return _doc.getState();
+    public BinDocumentWithChecksumWriter(final BinDocument doc) {
+        super(doc);
     }
 
     public @Override int getLength() {
-        return BinDocumentRaw.getLength(getKey().remaining(), getValue().remaining());
-    }
-
-    public @Override boolean isTombstone(){
-        return _doc.isTombstone();
-    }
-
-    public @Override boolean isCompressed(){
-        return _doc.isCompressed();
+        return BinDocumentWithChecksum.getLength(getKey().remaining(), getValue().remaining());
     }
 
     private static final int MAX_KEY_LENGTH = 1 << (Integer.SIZE - Byte.SIZE);
@@ -81,5 +48,6 @@ public class BinDocumentRawWriter implements BinDocumentFactory.BinDocumentWrite
         writer.putLong(getLastModified());
         writer.put(key);
         writer.put(val);
+        writer.putLong(BinDocumentWithChecksum.getChecksum(buffer, offset, getLength() - BYTES_OF_LONG));
     }
 }

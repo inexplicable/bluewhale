@@ -67,16 +67,16 @@ public class DbBenchmark
     static {
         try {
             cache_ = CacheBuilder.builder(Serializers.BYTE_ARRAY_SERIALIZER, Serializers.BYTE_ARRAY_SERIALIZER)
-                            .setLocal(_dir)
-                            .setEventBus(_eventBus)
-                            .setExecutor(_executor)
-                            .setConcurrencyLevel(4)
-                            .setMaxSegmentDepth(8)
-                            .setBinDocumentFactory(BinDocumentFactories.RAW)
-                            .setJournalLength(1 << 29)
-                            .setMaxJournals(8)
-                            .setMaxMemoryMappedJournals(2)
-                            .setPersistent(false)
+                            .local(_dir)
+                            .eventBus(_eventBus)
+                            .executor(_executor)
+                            .concurrencyLevel(4)
+                            .maxSegmentDepth(8)
+                            .binDocumentFactory(BinDocumentFactories.RAW)
+                            .journalLength(1 << 29)
+                            .maxJournals(8)
+                            .maxMemoryMappedJournals(2)
+                            .persists(false)
                             .build();
         }
         catch (IOException ex) {

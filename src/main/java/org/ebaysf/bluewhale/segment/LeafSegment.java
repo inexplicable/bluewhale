@@ -55,7 +55,7 @@ public class LeafSegment extends AbstractSegment {
         _tokens = _mmap.asLongBuffer();
 
         configuration().getEventBus().register(this);
-        _manager.rememberBufferUsedBySegment(new Pair<File, ByteBuffer>(local, _mmap), this);
+        _manager.rememberBufferUsedBySegment(Pair.with(local, _mmap), this);
     }
 
     public @Override <V> V get(Get get) throws ExecutionException, IOException {
@@ -320,27 +320,25 @@ public class LeafSegment extends AbstractSegment {
 
                     final Object key = getKeySerializer().deserialize(doc.getKey(), false);
                     if(!groupByKey.containsKey(key)){
-                        groupByKey.put(key, new Pair<Long, BinDocument>(Long.valueOf(nextToken), doc));
+                        groupByKey.put(key, Pair.with(Long.valueOf(nextToken), doc));
                     }
                 }
 
                 //2nd, sweep the filtered documents map again, remove all tombstones, those keys were simply invalidated
                 //3rd, actual split, including size calculations.
                 boolean lowerHeadGiven = false, upperHeadGiven = false;
-                for(Pair<Long, BinDocument> survived : Collections2.filter(groupByKey.values(), _nonTombstonePredicate)){
-                    final long tokenSurvived = survived.getValue0().longValue();
-                    final BinDocument docSurvived = survived.getValue1();
-                    final int segmentCode = getSegmentCode(docSurvived.getHashCode());
-                    if(segmentCode >= lower.range().lowerEndpoint() && segmentCode <= lower.range().upperEndpoint()){
+                for(Pair<Long, BinDocument> survival : Collections2.filter(groupByKey.values(), _nonTombstonePredicate)){
+                    final int segmentCode = getSegmentCode(survival.getValue1().getHashCode());
+                    if(lower.range().contains(segmentCode)){
                         if(!lowerHeadGiven){
-                            lower._tokens.put(offset, tokenSurvived);
+                            lower._tokens.put(offset, survival.getValue0().longValue());
                             lowerHeadGiven = true;
                         }
                         lower._size += 1;
                     }
-                    else if(segmentCode >= upper.range().lowerEndpoint() && segmentCode <= upper.range().upperEndpoint()){
+                    else if(upper.range().contains(segmentCode)){
                         if(!upperHeadGiven){
-                            upper._tokens.put(offset, tokenSurvived);
+                            upper._tokens.put(offset, survival.getValue0().longValue());
                             upperHeadGiven = true;
                         }
                         upper._size += 1;
@@ -388,7 +386,7 @@ public class LeafSegment extends AbstractSegment {
         if(event.getSource() == this){
 
             LOG.info(String.format("[segment] split occurred %s -> %s,%s", this, _lower, _upper));
-            _manager.freeUpBuffer(new Pair<File, ByteBuffer>(local(), _mmap));
+            _manager.freeUpBuffer(Pair.with(local(), _mmap));
         }
     }
 
@@ -402,7 +400,7 @@ public class LeafSegment extends AbstractSegment {
 
             LOG.info("[segment] invalidate all");
             configuration().getEventBus().unregister(this);
-            _manager.freeUpBuffer(new Pair<File, ByteBuffer>(local(), _mmap));
+            _manager.freeUpBuffer(Pair.with(local(), _mmap));
         }
     }
 

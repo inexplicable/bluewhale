@@ -33,7 +33,7 @@ public class WriterBinJournal extends ByteBufferBinJournal {
 
         final BinDocumentFactory.BinDocumentWriter writer = _factory.getWriter(document);
 
-        final int length = writer.length();
+        final int length = writer.getLength();
         final int offset = _offset.getAndAdd(length);
 
         //-1 when the mmap is filled up

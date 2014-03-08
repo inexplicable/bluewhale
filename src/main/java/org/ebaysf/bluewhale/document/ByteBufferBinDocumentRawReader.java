@@ -8,11 +8,11 @@ import java.nio.ByteBuffer;
  */
 public class ByteBufferBinDocumentRawReader implements BinDocumentFactory.BinDocumentReader {
 
-    private final ByteBuffer _buffer;
-    private final int _offset;
-    private final byte _state;
-    private final int _keyLength;
-    private final int _valLength;
+    protected final ByteBuffer _buffer;
+    protected final int _offset;
+    protected final byte _state;
+    protected final int _keyLength;
+    protected final int _valLength;
     
     public ByteBufferBinDocumentRawReader(final ByteBuffer buffer, final int offset){
         _buffer = buffer.duplicate();

@@ -15,8 +15,6 @@ public interface BinDocumentFactory {
 
     interface BinDocumentWriter extends BinDocument {
 
-        int length();
-
         void write(final ByteBuffer buffer, final int offset);
     }
 

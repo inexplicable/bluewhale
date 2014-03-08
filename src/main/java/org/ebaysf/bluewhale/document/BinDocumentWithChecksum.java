@@ -28,7 +28,9 @@ public class BinDocumentWithChecksum extends BinDocumentRaw {
         }
         else{
             final byte[] copy = new byte[length];
-            buffer.get(copy, offset, length);
+            final ByteBuffer dup = buffer.duplicate();
+            dup.position(offset).limit(length);
+            dup.get(copy);
             crc32.update(copy, offset, length);
         }
         return crc32.getValue();

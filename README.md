@@ -48,8 +48,6 @@ readseq      :     1.09180 micros/op;  101.3 MB/s
 * TTL
 * Cache Builder semantics
 * Cold cache
-
-# Upcoming features:
 * Checksum document factory as an option
 
 # Developer Notes:

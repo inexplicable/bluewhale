@@ -59,12 +59,12 @@ public class GsonsTest {
         final Gson gson = Gsons.GSON;
         Assert.assertNotNull(gson);
 
-        final Pair<Long, TimeUnit> origin = new Pair<Long, TimeUnit>(1L, TimeUnit.HOURS);
-        final String str = gson.toJson(origin);
+        final Pair<Long, TimeUnit> origin = Pair.with(1L, TimeUnit.HOURS);
+        final String str = gson.toJson(origin, Gsons.TTL_TYPE);
 
         Assert.assertNotNull(str);
 
-        final Pair<Long, TimeUnit> parsed = gson.fromJson(str, Pair.class);
+        final Pair<Long, TimeUnit> parsed = gson.fromJson(str, Gsons.TTL_TYPE);
 
         Assert.assertNotNull(parsed);
 
@@ -131,15 +131,15 @@ public class GsonsTest {
         final File temp = Files.createTempDir();
 
         final Cache<String, String> cache = CacheBuilder.builder(Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
-                        .setLocal(temp)
-                        .setEventBus(new EventBus())
-                        .setExecutor(Executors.newCachedThreadPool())
-                        .setConcurrencyLevel(2)
-                        .setMaxSegmentDepth(2)
-                        .setBinDocumentFactory(BinDocumentFactories.RAW)
-                        .setJournalLength(1 << 20)
-                        .setMaxJournals(8)
-                        .setMaxMemoryMappedJournals(2)
+                        .local(temp)
+                        .eventBus(new EventBus())
+                        .executor(Executors.newCachedThreadPool())
+                        .concurrencyLevel(2)
+                        .maxSegmentDepth(2)
+                        .binDocumentFactory(BinDocumentFactories.RAW)
+                        .journalLength(1 << 20)
+                        .maxJournals(8)
+                        .maxMemoryMappedJournals(2)
                         .build();
 
         Assert.assertNotNull(cache);

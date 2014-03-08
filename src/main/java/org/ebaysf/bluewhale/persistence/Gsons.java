@@ -1,5 +1,6 @@
 package org.ebaysf.bluewhale.persistence;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
@@ -22,6 +23,7 @@ import java.io.*;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -30,11 +32,13 @@ import java.util.regex.Pattern;
  */
 public abstract class Gsons {
 
+    private static final Logger LOG = Logger.getLogger(Gsons.class.getName());
+
     private static final GsonBuilder _gsonBuilder = new GsonBuilder()
             .serializeNulls()
             .excludeFieldsWithModifiers(Modifier.TRANSIENT, Modifier.STATIC);
 
-    private static final Type _ttlType = new TypeToken<Pair<Long, TimeUnit>>(){}.getType();
+    public static final Type TTL_TYPE = new TypeToken<Pair<Long, TimeUnit>>(){}.getType();
     private static final Pattern _ttlPattern = Pattern.compile("([0-9]+)ns");
 
     static {
@@ -58,7 +62,7 @@ public abstract class Gsons {
             }
         });
 
-        _gsonBuilder.registerTypeAdapter(Pair.class, new JsonSerializer<Pair<Long, TimeUnit>>() {
+        _gsonBuilder.registerTypeAdapter(TTL_TYPE, new JsonSerializer<Pair<Long, TimeUnit>>() {
 
             public @Override JsonElement serialize(final Pair<Long, TimeUnit> ttl,
                                                    final Type type,
@@ -68,7 +72,7 @@ public abstract class Gsons {
             }
         });
 
-        _gsonBuilder.registerTypeAdapter(Pair.class, new JsonDeserializer<Pair<Long, TimeUnit>>() {
+        _gsonBuilder.registerTypeAdapter(TTL_TYPE, new JsonDeserializer<Pair<Long, TimeUnit>>() {
 
             public @Override Pair<Long, TimeUnit> deserialize(final JsonElement json,
                                                               final Type typeOfT,
@@ -77,7 +81,7 @@ public abstract class Gsons {
                 final String nsAsStr = json.getAsJsonPrimitive().getAsString();
                 final Matcher ttlMatcher = _ttlPattern.matcher(nsAsStr);
                 if(ttlMatcher.matches()){
-                    return new Pair<Long, TimeUnit>(Long.valueOf(ttlMatcher.group(1)), TimeUnit.NANOSECONDS);
+                    return Pair.with(Long.valueOf(ttlMatcher.group(1)), TimeUnit.NANOSECONDS);
                 }
                 return null;
             }
@@ -268,7 +272,7 @@ public abstract class Gsons {
                 obj.add("_maxMemoryMappedJournals", new JsonPrimitive(source.getMaxMemoryMappedJournals()));
                 obj.add("_leastJournalUsageRatio", new JsonPrimitive(source.getLeastJournalUsageRatio()));
                 obj.add("_dangerousJournalsRatio", new JsonPrimitive(source.getDangerousJournalsRatio()));
-                obj.add("_ttl", ctx.serialize(source.getTTL()));
+                obj.add("_ttl", ctx.serialize(source.getTTL(), TTL_TYPE));
 
                 return obj;
             }
@@ -290,7 +294,7 @@ public abstract class Gsons {
                 final int maxMemoryMappedJournals = asObj.get("_maxMemoryMappedJournals").getAsInt();
                 final float leastJournalUsageRatio = asObj.get("_leastJournalUsageRatio").getAsFloat();
                 final float dangerousJournalsRatio = asObj.get("_dangerousJournalsRatio").getAsFloat();
-                final Pair<Long, TimeUnit> ttl = ctx.deserialize(asObj.get("_ttl"), Pair.class);
+                final Pair<Long, TimeUnit> ttl = ctx.deserialize(asObj.get("_ttl"), TTL_TYPE);
 
                 return new CacheBuilder.ConfigurationImpl(local, null, null, concurrencyLevel, maxSegmentDepth, maxPathDepth,
                         null, journalLength, maxJournals, maxMemoryMappedJournals, leastJournalUsageRatio, dangerousJournalsRatio, ttl,
@@ -306,7 +310,10 @@ public abstract class Gsons {
         final File local = Preconditions.checkNotNull(cache.getConfiguration().getLocal());
         final File cold = Files.newCacheFile(local);
 
-        GSON.toJson(cache, new FileWriter(cold));
+        final String json = GSON.toJson(cache);
+        LOG.info(json);
+
+        com.google.common.io.Files.write(json, cold, Charsets.UTF_8);
 
         return cold;
     }

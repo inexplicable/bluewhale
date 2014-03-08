@@ -4,7 +4,6 @@ import com.google.common.base.Strings;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.Lists;
-import com.google.common.eventbus.AsyncEventBus;
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.Files;
 import org.ebaysf.bluewhale.configurable.CacheBuilder;
@@ -40,16 +39,16 @@ public class CacheTest {
         final EventBus eventBus = new EventBus();
 
         final Cache<String, String> cache = CacheBuilder.builder(Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
-                        .setLocal(temp)
-                        .setEventBus(eventBus)
-                        .setExecutor(_executor)
-                        .setConcurrencyLevel(2)
-                        .setMaxSegmentDepth(2)
-                        .setBinDocumentFactory(BinDocumentFactories.RAW)
-                        .setJournalLength(1 << 20)
-                        .setMaxJournals(8)
-                        .setMaxMemoryMappedJournals(2)
-                        .setPersistent(false)
+                        .local(temp)
+                        .eventBus(eventBus)
+                        .executor(_executor)
+                        .concurrencyLevel(2)
+                        .maxSegmentDepth(2)
+                        .binDocumentFactory(BinDocumentFactories.RAW)
+                        .journalLength(1 << 20)
+                        .maxJournals(8)
+                        .maxMemoryMappedJournals(2)
+                        .persists(false)
                         .build();
 
         Assert.assertNotNull(cache);
@@ -70,17 +69,17 @@ public class CacheTest {
         final EventBus eventBus = new EventBus();
 
         final Cache<String, String> cache = CacheBuilder.builder(Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
-                .setLocal(temp)
-                .setEventBus(eventBus)
-                .setExecutor(_executor)
-                .setConcurrencyLevel(2)
-                .setMaxSegmentDepth(2)
-                .setBinDocumentFactory(BinDocumentFactories.RAW)
-                .setJournalLength(1 << 20)
-                .setMaxJournals(8)
-                .setMaxMemoryMappedJournals(2)
-                .setPersistent(false)
-                .setRemovalListener(new RemovalListener<String, String>() {
+                .local(temp)
+                .eventBus(eventBus)
+                .executor(_executor)
+                .concurrencyLevel(2)
+                .maxSegmentDepth(2)
+                .binDocumentFactory(BinDocumentFactories.RAW)
+                .journalLength(1 << 20)
+                .maxJournals(8)
+                .maxMemoryMappedJournals(2)
+                .persists(false)
+                .removalListener(new RemovalListener<String, String>() {
                     @Override
                     public void onRemoval(RemovalNotification<String, String> notification) {
 
@@ -116,16 +115,16 @@ public class CacheTest {
         final EventBus eventBus = new EventBus();
 
         final Cache<String, String> cache = CacheBuilder.builder(Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
-                        .setLocal(temp)
-                        .setEventBus(eventBus)
-                        .setExecutor(_executor)
-                        .setConcurrencyLevel(3)
-                        .setMaxSegmentDepth(4)
-                        .setBinDocumentFactory(BinDocumentFactories.RAW)
-                        .setJournalLength(1 << 20)
-                        .setMaxJournals(8)
-                        .setMaxMemoryMappedJournals(2)
-                        .setPersistent(false)
+                        .local(temp)
+                        .eventBus(eventBus)
+                        .executor(_executor)
+                        .concurrencyLevel(3)
+                        .maxSegmentDepth(4)
+                        .binDocumentFactory(BinDocumentFactories.RAW)
+                        .journalLength(1 << 20)
+                        .maxJournals(8)
+                        .maxMemoryMappedJournals(2)
+                        .persists(false)
                         .build();
 
         final String[] candidates = new String[100000];
@@ -167,21 +166,21 @@ public class CacheTest {
     public void testConcurrentCachePerf() throws IOException, ExecutionException {
 
         final File temp = Files.createTempDir();
-        final EventBus eventBus = new AsyncEventBus(_executor);
+        final EventBus eventBus = new EventBus();
         final AtomicLong durations = new AtomicLong(0L);
         final ExecutorService concurrency = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() / 2 + 1);
 
         final Cache<String, String> cache = CacheBuilder.builder(Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
-                        .setLocal(temp)
-                        .setEventBus(eventBus)
-                        .setExecutor(_executor)
-                        .setConcurrencyLevel(2)
-                        .setMaxSegmentDepth(2)
-                        .setBinDocumentFactory(BinDocumentFactories.RAW)
-                        .setJournalLength(1 << 20)
-                        .setMaxJournals(8)
-                        .setMaxMemoryMappedJournals(2)
-                        .setPersistent(true)
+                        .local(temp)
+                        .eventBus(eventBus)
+                        .executor(_executor)
+                        .concurrencyLevel(2)
+                        .maxSegmentDepth(2)
+                        .binDocumentFactory(BinDocumentFactories.RAW)
+                        .journalLength(1 << 20)
+                        .maxJournals(8)
+                        .maxMemoryMappedJournals(2)
+                        .persists(false)
                         .build();
 
         final String[] candidates = new String[10000];

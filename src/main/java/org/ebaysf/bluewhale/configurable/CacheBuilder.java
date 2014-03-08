@@ -77,27 +77,27 @@ public class CacheBuilder<K, V> implements Configuration {
         return _local;
     }
 
-    public CacheBuilder<K, V> setLocal(final File local){
+    public CacheBuilder<K, V> local(final File local){
         _local = Preconditions.checkNotNull(local);
         return this;
     }
 
-    public CacheBuilder<K, V> setCold(final File source) throws IOException {
+    public CacheBuilder<K, V> cold(final File source) throws IOException {
 
         final PersistedCache<K, V> cold = Gsons.load(source);
 
         final Configuration configuration = cold.getConfiguration();
 
-        this.setConcurrencyLevel(configuration.getConcurrencyLevel())
-            .setMaxSegmentDepth(configuration.getMaxSegmentDepth())
-            .setMaxPathDepth(configuration.getMaxPathDepth())
-            .setJournalLength(configuration.getJournalLength())
-            .setMaxJournals(configuration.getMaxJournals())
-            .setMaxMemoryMappedJournals(configuration.getMaxMemoryMappedJournals())
-            .setLeastJournalUsageRatio(configuration.getLeastJournalUsageRatio())
-            .setDangerousJournalsRatio(configuration.getDangerousJournalsRatio())
-            .setTTL(configuration.getTTL())
-            .setPersistent(true);
+        this.concurrencyLevel(configuration.getConcurrencyLevel())
+            .maxSegmentDepth(configuration.getMaxSegmentDepth())
+            .maxPathDepth(configuration.getMaxPathDepth())
+            .journalLength(configuration.getJournalLength())
+            .maxJournals(configuration.getMaxJournals())
+            .maxMemoryMappedJournals(configuration.getMaxMemoryMappedJournals())
+            .leastJournalUsageRatio(configuration.getLeastJournalUsageRatio())
+            .dangerousJournalsRatio(configuration.getDangerousJournalsRatio())
+            .ttl(configuration.getTTL())
+            .persists(true);
 
         _coldSegments = Preconditions.checkNotNull(cold.getPersistedSegments());
         _coldJournals = Preconditions.checkNotNull(cold.getPersistedJournals());
@@ -113,7 +113,7 @@ public class CacheBuilder<K, V> implements Configuration {
         return _valSerializer;
     }
 
-    public CacheBuilder<K, V> setRemovalListener(final RemovalListener<K, V> removalListener){
+    public CacheBuilder<K, V> removalListener(final RemovalListener<K, V> removalListener){
         _removalListener = Preconditions.checkNotNull(removalListener);
         return this;
     }
@@ -122,7 +122,7 @@ public class CacheBuilder<K, V> implements Configuration {
         return _concurrencyLevel;
     }
 
-    public CacheBuilder<K, V> setConcurrencyLevel(final int concurrencyLevel){
+    public CacheBuilder<K, V> concurrencyLevel(final int concurrencyLevel){
         Preconditions.checkArgument(concurrencyLevel > 0 & concurrencyLevel < 16);
         _concurrencyLevel = concurrencyLevel;
         return this;
@@ -132,7 +132,7 @@ public class CacheBuilder<K, V> implements Configuration {
         return _maxSegmentDepth;
     }
 
-    public CacheBuilder<K, V> setMaxSegmentDepth(final int maxSegmentDepth){
+    public CacheBuilder<K, V> maxSegmentDepth(final int maxSegmentDepth){
         Preconditions.checkArgument(maxSegmentDepth > 0 && maxSegmentDepth < 16);
         _maxSegmentDepth = maxSegmentDepth;
         return this;
@@ -142,7 +142,7 @@ public class CacheBuilder<K, V> implements Configuration {
         return _maxPathDepth;
     }
 
-    public CacheBuilder<K, V> setMaxPathDepth(final int maxPathDepth){
+    public CacheBuilder<K, V> maxPathDepth(final int maxPathDepth){
         Preconditions.checkArgument(maxPathDepth > 0);
         _maxPathDepth = maxPathDepth;
         return this;
@@ -152,7 +152,7 @@ public class CacheBuilder<K, V> implements Configuration {
         return _factory;
     }
 
-    public CacheBuilder<K, V> setBinDocumentFactory(final BinDocumentFactory factory){
+    public CacheBuilder<K, V> binDocumentFactory(final BinDocumentFactory factory){
         _factory = Preconditions.checkNotNull(factory);
         return this;
     }
@@ -161,7 +161,7 @@ public class CacheBuilder<K, V> implements Configuration {
         return _journalLength;
     }
 
-    public CacheBuilder<K, V> setJournalLength(final int journalLength){
+    public CacheBuilder<K, V> journalLength(final int journalLength){
         Preconditions.checkArgument(journalLength > 0 && journalLength < Integer.MAX_VALUE);
         _journalLength = journalLength;
         return this;
@@ -171,7 +171,7 @@ public class CacheBuilder<K, V> implements Configuration {
         return _maxJournals;
     }
 
-    public CacheBuilder<K, V> setMaxJournals(final int maxJournals){
+    public CacheBuilder<K, V> maxJournals(final int maxJournals){
         Preconditions.checkArgument(maxJournals > 1 && maxJournals < Integer.MAX_VALUE);
         _maxJournals = maxJournals;
         return this;
@@ -181,7 +181,7 @@ public class CacheBuilder<K, V> implements Configuration {
         return _maxMemoryMappedJournals;
     }
 
-    public CacheBuilder<K, V> setMaxMemoryMappedJournals(final int maxMemoryMappedJournals){
+    public CacheBuilder<K, V> maxMemoryMappedJournals(final int maxMemoryMappedJournals){
         Preconditions.checkArgument(maxMemoryMappedJournals > 1 && maxMemoryMappedJournals < _maxJournals);
         _maxMemoryMappedJournals = maxMemoryMappedJournals;
         return this;
@@ -191,7 +191,7 @@ public class CacheBuilder<K, V> implements Configuration {
         return _leastJournalUsageRatio;
     }
 
-    public CacheBuilder<K, V> setLeastJournalUsageRatio(final float leastJournalUsageRatio){
+    public CacheBuilder<K, V> leastJournalUsageRatio(final float leastJournalUsageRatio){
         Preconditions.checkArgument(leastJournalUsageRatio >= 0f && leastJournalUsageRatio < 0.5f);
         _leastJournalUsageRatio = leastJournalUsageRatio;
         return this;
@@ -201,7 +201,7 @@ public class CacheBuilder<K, V> implements Configuration {
         return _dangerousJournalsRatio;
     }
 
-    public CacheBuilder<K, V> setDangerousJournalsRatio(final float dangerousJournalsRatio){
+    public CacheBuilder<K, V> dangerousJournalsRatio(final float dangerousJournalsRatio){
         Preconditions.checkArgument(dangerousJournalsRatio > 0f && dangerousJournalsRatio < 0.5f);
         _dangerousJournalsRatio = dangerousJournalsRatio;
         return this;
@@ -211,7 +211,7 @@ public class CacheBuilder<K, V> implements Configuration {
         return _ttl;
     }
 
-    public CacheBuilder<K, V> setTTL(final Pair<Long, TimeUnit> ttl){
+    public CacheBuilder<K, V> ttl(final Pair<Long, TimeUnit> ttl){
         _ttl = Preconditions.checkNotNull(ttl);
         return this;
     }
@@ -220,7 +220,7 @@ public class CacheBuilder<K, V> implements Configuration {
         return _persistent;
     }
 
-    public CacheBuilder<K, V> setPersistent(final boolean persistent){
+    public CacheBuilder<K, V> persists(final boolean persistent){
         _persistent = persistent;
         return this;
     }
@@ -229,7 +229,7 @@ public class CacheBuilder<K, V> implements Configuration {
         return _evictionStrategy;
     }
 
-    public CacheBuilder<K, V> setEvictionStrategy(final EvictionStrategy evictionStrategy){
+    public CacheBuilder<K, V> evictionStrategy(final EvictionStrategy evictionStrategy){
         _evictionStrategy = Preconditions.checkNotNull(evictionStrategy);
         return this;
     }
@@ -238,7 +238,7 @@ public class CacheBuilder<K, V> implements Configuration {
         return _eventBus;
     }
 
-    public CacheBuilder<K, V> setEventBus(final EventBus eventBus){
+    public CacheBuilder<K, V> eventBus(final EventBus eventBus){
         _eventBus = Preconditions.checkNotNull(eventBus);
         return this;
     }
@@ -247,7 +247,7 @@ public class CacheBuilder<K, V> implements Configuration {
         return _executor;
     }
 
-    public CacheBuilder<K, V> setExecutor(final ExecutorService executor){
+    public CacheBuilder<K, V> executor(final ExecutorService executor){
         _executor = Preconditions.checkNotNull(executor);
         return this;
     }

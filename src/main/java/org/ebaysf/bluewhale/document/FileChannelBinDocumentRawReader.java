@@ -13,11 +13,11 @@ import java.nio.channels.FileChannel;
  */
 public class FileChannelBinDocumentRawReader implements BinDocumentFactory.BinDocumentReader {
 
-    private final FileChannel _fch;
-    private final byte _state;
-    private final int _keyLength;
-    private final int _valLength;
-    private final ByteBuffer _buffer;
+    protected final FileChannel _fch;
+    protected final byte _state;
+    protected final int _keyLength;
+    protected final int _valLength;
+    protected final ByteBuffer _buffer;
 
     public FileChannelBinDocumentRawReader(final FileChannel fch,
                                            final int offset,

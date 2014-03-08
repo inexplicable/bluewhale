@@ -84,7 +84,7 @@ public class SegmentsManager {
             source.deleteOnExit();
         }
         final ByteBuffer buffer = com.google.common.io.Files.map(source, FileChannel.MapMode.READ_WRITE, Segment.SIZE);
-        return new Pair<File, ByteBuffer>(source, buffer);
+        return Pair.with(source, buffer);
     }
 
     public int getSpanAtLeast() {
