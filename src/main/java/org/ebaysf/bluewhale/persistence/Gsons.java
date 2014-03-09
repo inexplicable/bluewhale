@@ -321,6 +321,8 @@ public abstract class Gsons {
 
     public static <K, V> PersistedCache<K, V> load(final File source) throws IOException {
 
+        Preconditions.checkArgument(source.exists() && source.canRead() && source.isFile());
+
         return GSON.fromJson(new FileReader(source), PersistedCache.class);
     }
 }

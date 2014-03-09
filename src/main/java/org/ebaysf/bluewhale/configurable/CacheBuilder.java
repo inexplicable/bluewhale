@@ -84,8 +84,11 @@ public class CacheBuilder<K, V> implements Configuration {
 
     public CacheBuilder<K, V> cold(final File source) throws IOException {
 
-        final PersistedCache<K, V> cold = Gsons.load(source);
+        if(!source.exists()){
+            return persists(true);
+        }
 
+        final PersistedCache<K, V> cold = Gsons.load(source);
         final Configuration configuration = cold.getConfiguration();
 
         this.concurrencyLevel(configuration.getConcurrencyLevel())
