@@ -86,11 +86,11 @@ public class BinStorageImpl implements BinStorage {
         return _configuration.getLocal();
     }
 
-    public @Override long append(BinDocument binDocument) throws IOException {
+    public @Override long append(final BinDocument document) throws IOException {
 
         Preconditions.checkState(_journaling != null && _journaling.currentState().isWritable());
 
-        final int offset = _journaling.append(binDocument);
+        final int offset = _journaling.append(document);
 
         if(offset < 0){
 
@@ -99,7 +99,7 @@ public class BinStorageImpl implements BinStorage {
                 _lock.lock();
 
                 acceptWritable(nextWritable());
-                return append(binDocument);
+                return append(document);
             }
             finally{
                 _eventBus.post(new PostExpansionEvent(this, previous));

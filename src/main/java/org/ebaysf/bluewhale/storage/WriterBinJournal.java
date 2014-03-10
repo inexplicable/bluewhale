@@ -27,6 +27,8 @@ public class WriterBinJournal extends ByteBufferBinJournal {
         super(local, JournalState.BufferedWritable, journalRange, manager, usage, factory, length, 0, buffer);
 
         _offset = new AtomicInteger(0);
+
+        _journalUsage.getAlives().set(0);//avoid serialization exception temporarily
     }
 
     public @Override int append(final BinDocument document) throws IOException {

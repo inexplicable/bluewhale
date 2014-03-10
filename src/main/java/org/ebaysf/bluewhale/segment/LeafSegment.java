@@ -128,8 +128,9 @@ public class LeafSegment extends AbstractSegment {
                     return;//this is because of the background optimization tasks
                 }
 
-                final BinStorage bin = getStorage();
-                final long token = bin.append(put.create(getKeySerializer(), getValSerializer(), next));
+                final BinStorage storage = getStorage();
+                final BinDocument document = put.create(getKeySerializer(), getValSerializer(), next);
+                final long token = storage.append(document);
                 _tokens.put(offset, token);
 
                 //we must check the size change here, then trigger possible splits
@@ -139,6 +140,8 @@ public class LeafSegment extends AbstractSegment {
                 else if(!put.refreshes() && next >= 0){//we won't do path shortening till read spotted the long paths
                     notifyRemoval(put, next);
                 }
+
+                _configuration.getEvictionStrategy().afterPut(this, storage, token, document);
                 return;//must return here, otherwise it goes into infinite recursion.
             }
         }
@@ -265,9 +268,9 @@ public class LeafSegment extends AbstractSegment {
             return false;
         }
 
-        final BinStorage bin = getStorage();
+        final BinStorage storage = getStorage();
         //verify normal updates is ok
-        for(BinDocument doc = bin.read(next); doc != null; doc = bin.read(doc.getNext())) {
+        for(BinDocument doc = storage.read(next); doc != null; doc = storage.read(doc.getNext())) {
 
             if(getKeySerializer().equals(put.getKey(getKeySerializer()), doc.getKey())) {
                 return put.getLastModified() < doc.getLastModified();//the PUT is created ahead of the existing docs, filter it out
@@ -292,9 +295,9 @@ public class LeafSegment extends AbstractSegment {
             return false;
         }
 
-        final BinStorage bin = getStorage();
+        final BinStorage storage = getStorage();
         final Object key = put.getKey(getKeySerializer());
-        for(BinDocument doc = bin.read(next); doc != null; doc = bin.read(doc.getNext())){
+        for(BinDocument doc = storage.read(next); doc != null; doc = storage.read(doc.getNext())){
 
             if(getKeySerializer().equals(key, doc.getKey())){
                 //overwrites a tombstone, size increments
@@ -316,7 +319,7 @@ public class LeafSegment extends AbstractSegment {
         Preconditions.checkArgument(lowerBound != upperBound, "cannot further split!");
 
         final int splitAt = lowerBound + ((upperBound - lowerBound) >> 1);//(int)(((long)lowerBound +(long)upperBound) >> 1L);
-        final BinStorage bin = getStorage();
+        final BinStorage storage = getStorage();
 
         final LeafSegment lower = newLeafSegment(_manager.allocateBuffer(), Range.closed(lowerBound, splitAt));
         final LeafSegment upper = newLeafSegment(_manager.allocateBuffer(), Range.closed(splitAt + 1, upperBound));
@@ -327,7 +330,7 @@ public class LeafSegment extends AbstractSegment {
                 final Map<Object, Pair<Long, BinDocument>> groupByKey = Maps.newLinkedHashMap();
                 //1st, filter all docs, keeping only the 1st doc of each unique key
                 long nextToken = token;
-                for(BinDocument doc = bin.read(nextToken); doc != null; nextToken = doc.getNext(), doc = bin.read(nextToken)){
+                for(BinDocument doc = storage.read(nextToken); doc != null; nextToken = doc.getNext(), doc = storage.read(nextToken)){
 
                     final Object key = getKeySerializer().deserialize(doc.getKey(), false);
                     if(!groupByKey.containsKey(key)){

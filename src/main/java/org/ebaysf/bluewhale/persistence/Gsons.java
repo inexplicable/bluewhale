@@ -163,7 +163,7 @@ public abstract class Gsons {
 
                 final File local = ctx.deserialize(asObj.get("_local"), File.class);
                 final Range<Integer> range = ctx.deserialize(asObj.get("_range"), Range.class);
-                final int size = ctx.deserialize(asObj.get("_size"), Integer.class);
+                final Integer size = ctx.deserialize(asObj.get("_size"), Integer.class);
 
                 return new PersistedSegment(local, range, size);
             }
@@ -247,8 +247,8 @@ public abstract class Gsons {
                 final BinJournal.JournalState state = ctx.deserialize(asObj.get("_state"), BinJournal.JournalState.class);
                 final Range<Integer> range = ctx.deserialize(asObj.get("_journalRange"), Range.class);
                 final JournalUsage usage = ctx.deserialize(asObj.get("_journalUsage"), JournalUsage.class);
-                final int length = ctx.deserialize(asObj.get("_length"), Integer.class);
-                final int size = ctx.deserialize(asObj.get("_size"), Integer.class);
+                final Integer length = ctx.deserialize(asObj.get("_length"), Integer.class);
+                final Integer size = ctx.deserialize(asObj.get("_size"), Integer.class);
 
                 return new PersistedJournal(local, state, range, usage, length, size);
             }
