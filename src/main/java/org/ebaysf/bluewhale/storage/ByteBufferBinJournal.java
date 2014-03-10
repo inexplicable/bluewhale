@@ -28,9 +28,10 @@ public class ByteBufferBinJournal extends AbstractBinJournal {
                                 final JournalUsage usage,
                                 final BinDocumentFactory factory,
                                 final int length,
+                                final int size,
                                 final ByteBuffer buffer) {
 
-        super(local, state, journalRange, manager, usage, factory, length);
+        super(local, state, journalRange, manager, usage, factory, length, size);
 
         _mmap = buffer;
 

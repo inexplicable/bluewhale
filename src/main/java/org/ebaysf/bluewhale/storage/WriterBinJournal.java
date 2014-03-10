@@ -24,7 +24,7 @@ public class WriterBinJournal extends ByteBufferBinJournal {
                             final int length,
                             final ByteBuffer buffer) {
 
-        super(local, JournalState.BufferedWritable, journalRange, manager, usage, factory, length, buffer);
+        super(local, JournalState.BufferedWritable, journalRange, manager, usage, factory, length, 0, buffer);
 
         _offset = new AtomicInteger(0);
     }

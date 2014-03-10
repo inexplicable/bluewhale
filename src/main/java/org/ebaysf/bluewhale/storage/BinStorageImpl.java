@@ -196,8 +196,7 @@ public class BinStorageImpl implements BinStorage {
                     }
                     else{
                         final ByteBufferBinJournal immutable = new ByteBufferBinJournal(cold.local(),
-                                cold.currentState(), cold.range(), _manager, cold.usage(), _factory, cold.getJournalLength(), _manager.loadBuffer(cold.local()).getValue1());
-                        immutable._size = cold.getDocumentSize();
+                                cold.currentState(), cold.range(), _manager, cold.usage(), _factory, cold.getJournalLength(), cold.getDocumentSize(), _manager.loadBuffer(cold.local()).getValue1());
                         warm = immutable;
                     }
                 }
@@ -271,20 +270,15 @@ public class BinStorageImpl implements BinStorage {
 
         Preconditions.checkArgument(previous != null && previous.currentState().isWritable());
 
-        final ByteBufferBinJournal immutable = new ByteBufferBinJournal(previous.local(),
+        return new ByteBufferBinJournal(previous.local(),
                 BinJournal.JournalState.BufferedReadOnly,
                 previous.range(),
                 _manager,
                 new JournalUsageImpl(previous.usage().getLastModified(), previous.getDocumentSize()),
                 _factory,
                 previous.getJournalLength(),
+                previous.getDocumentSize(),
                 previous.getMemoryMappedBuffer());
-
-        immutable._size = previous.getDocumentSize();
-        //assume everything still in use
-        immutable.usage().getAlives().set(0, immutable._size);
-
-        return immutable;
     }
 
     @Subscribe

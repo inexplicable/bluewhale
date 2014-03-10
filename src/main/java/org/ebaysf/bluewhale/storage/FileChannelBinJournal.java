@@ -42,11 +42,10 @@ public class FileChannelBinJournal extends AbstractBinJournal {
                                  final int size,
                                  final int documentLength90) throws FileNotFoundException {
 
-        super(local, JournalState.FileChannelReadOnly, journalRange, manager, usage, factory, length);
+        super(local, JournalState.FileChannelReadOnly, journalRange, manager, usage, factory, length, size);
 
         _raf = new RandomAccessFile(local(), "r");
         _fch = _raf.getChannel();
-        _size = size;
 
         if(documentLength90 < 0){
             _manager.getEventBus().register(this);

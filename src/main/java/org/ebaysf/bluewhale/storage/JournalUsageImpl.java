@@ -30,6 +30,7 @@ public class JournalUsageImpl implements JournalUsage {
         }
         else {
             _alives = new SparseBitSet(documents);
+            _alives.set(0, documents);
         }
     }
 

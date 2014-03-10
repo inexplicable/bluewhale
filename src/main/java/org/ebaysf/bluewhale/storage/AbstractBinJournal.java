@@ -26,16 +26,18 @@ public abstract class AbstractBinJournal implements BinJournal {
                               final JournalsManager manager,
                               final JournalUsage usage,
                               final BinDocumentFactory factory,
-                              final int length){
+                              final int length,
+                              final int size){
         _local = local;
         _state = state;
         _journalRange = range;
         _journalUsage = usage;
         _length = length;
+        _size = size;
 
         _manager = manager;
         _factory = factory;
-        _size = 0;
+        _size = size;
     }
 
     public @Override JournalState currentState() {
