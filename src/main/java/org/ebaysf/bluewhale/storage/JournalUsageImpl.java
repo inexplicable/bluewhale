@@ -11,11 +11,26 @@ public class JournalUsageImpl implements JournalUsage {
     private final int _documents;
     private final SparseBitSet _alives;
 
-    public JournalUsageImpl(final long lastModified, final int documents){
+    public JournalUsageImpl(final long lastModified,
+                            final int documents){
+
+        this(lastModified, documents, null);
+    }
+
+    public JournalUsageImpl(final long lastModified,
+                            final int documents,
+                            final SparseBitSet alives){
 
         _lastModified = lastModified;
         _documents = documents;
-        _alives = new SparseBitSet(Math.max(documents, 1024));
+
+        if(alives != null){
+            _alives = new SparseBitSet(alives.length());
+            _alives.or(alives);
+        }
+        else {
+            _alives = new SparseBitSet(documents);
+        }
     }
 
     public @Override long getLastModified() {

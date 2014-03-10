@@ -213,10 +213,7 @@ public abstract class Gsons {
                 final int documents = asObj.get("_documents").getAsInt();
                 final SparseBitSet alives = ctx.deserialize(asObj.get("_alives"), SparseBitSet.class);
 
-                final JournalUsage usage = new JournalUsageImpl(lastModified, documents);
-                usage.getAlives().or(alives);
-
-                return usage;
+                return new JournalUsageImpl(lastModified, documents, alives);
             }
         });
 
