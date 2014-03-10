@@ -418,9 +418,14 @@ public class LeafSegment extends AbstractSegment {
     @Subscribe
     public void onPathTooLong(final PathTooLongEvent event){
 
-        if(event.getSource() == this){
+        if(event.getSource() != this){
+            return;
+        }
 
-            LOG.debug("[segment] path too long, optimization triggered");
+        LOG.debug("[segment] path too long, optimization triggered");
+
+        try{
+            _lock.lock();
 
             final int offset = event.getOffset();
             final long headTokenExpected = event.getHeadToken();
@@ -435,47 +440,39 @@ public class LeafSegment extends AbstractSegment {
             final Stack<BinDocument> survivals = new Stack<BinDocument>();
 
             int pathDepth = 0;
-
-            try{
-                //go through the path, push 1st met (& none tombstone) as survivals
-                //this will exclude all tombstones, and all obsolete values
-                for(BinDocument doc = storage.read(token); doc != null; doc = storage.read(doc.getNext())){
-                    if(!knowns.contains(doc.getKey())){
-                        knowns.add(doc.getKey());
-                        if(!doc.isTombstone()){//already removed, no need to rebuild
-                            survivals.add(doc);
-                        }
-                    }
-                    pathDepth += 1;
-                }
-
-                //when survivals are less than half of the path depth, this includes a corner case when there's no survivals at all
-                if(survivals.size() < pathDepth / 2){
-                    long next = -1L;
-
-                    //note, this is a stack pop, therefore LIFO, not really a must (key dedup happened), but fits better the actual write order
-                    while(!survivals.empty()){
-                        final BinDocument survival = survivals.pop();
-                        next = storage.append(new PutAsRefresh(survival.getKey(), survival.getValue(), survival.getHashCode(), survival.getState())
-                                .create(getKeySerializer(), getValSerializer(), next));
-                    }
-
-                    try{
-                        _lock.lock();
-                        //validate if the headToken is untouched.
-                        if(headTokenExpected == _tokens.get(offset)){
-                            _tokens.put(offset, next);
-                        }
-                    }
-                    finally {
-                        _lock.unlock();
+            //go through the path, push 1st met (& none tombstone) as survivals
+            //this will exclude all tombstones, and all obsolete values
+            for(BinDocument doc = storage.read(token); doc != null; doc = storage.read(doc.getNext())){
+                if(!knowns.contains(doc.getKey())){
+                    knowns.add(doc.getKey());
+                    if(!doc.isTombstone()){//already removed, no need to rebuild
+                        survivals.add(doc);
                     }
                 }
+                pathDepth += 1;
+            }
 
+            //when survivals are less than half of the path depth, this includes a corner case when there's no survivals at all
+            if(survivals.size() < pathDepth / 2){
+                long next = -1L;
+
+                //note, this is a stack pop, therefore LIFO, not really a must (key dedup happened), but fits better the actual write order
+                while(!survivals.empty()){
+                    final BinDocument survival = survivals.pop();
+                    next = storage.append(new PutAsRefresh(survival.getKey(), survival.getValue(), survival.getHashCode(), survival.getState())
+                            .create(getKeySerializer(), getValSerializer(), next));
+                }
+                //validate if the headToken is untouched.
+                if(headTokenExpected == _tokens.get(offset)){
+                    _tokens.put(offset, next);
+                }
             }
-            catch(IOException e){
-                LOG.error("path shortening failed", e);
-            }
+        }
+        catch(IOException e){
+            LOG.error("path shortening failed", e);
+        }
+        finally {
+            _lock.unlock();
         }
     }
 
