@@ -28,7 +28,6 @@ readseq      :     1.33068 micros/op;   83.1 MB/s
 readrandom   :     1.79489 micros/op;   61.6 MB/s
 readrandom   :     1.78563 micros/op;   62.0 MB/s
 readseq      :     1.08474 micros/op;  102.0 MB/s
-compact      :     9.00000 micros/op; 
 readrandom   :     1.80890 micros/op;   61.2 MB/s
 readseq      :     1.09180 micros/op;  101.3 MB/s
 ```
@@ -70,3 +69,22 @@ readseq      :     1.09180 micros/op;  101.3 MB/s
 * __cold__ `File` manages the source/destination of the cold cache to be loaded/persisted, default is `null`, means no persistence will be done.
 * __persistent__ `boolean` manages the persistence, when __cold__ is enabled, it must be `true`, default is `false`, and the `Segment`, `BinJournal` files will be deleted on JVM exit.
 
+# Tunings:
+* There're various tunings we could do given the configurations above, the most effective, and costly would be to allocate more RAM, using __maxMemoryMappedJournals__
+* From `2` to `4`, which effectively increased the RAM allocation from `1G` to `2G`, the very same benchmark result becomes the following:
+
+```
+fillseq      :     0.89166 micros/op;  124.1 MB/s
+fillseq      :     1.33815 micros/op;   82.7 MB/s
+fillsync     :     2.36350 micros/op;   46.8 MB/s (10000 ops)
+fillrandom   :     2.06842 micros/op;   53.5 MB/s
+fillseq      :     2.38430 micros/op;   46.4 MB/s
+overwrite    :     1.30755 micros/op;   84.6 MB/s
+fillseq      :     1.50557 micros/op;   73.5 MB/s
+readseq      :     0.41730 micros/op;  265.1 MB/s
+readrandom   :     0.93344 micros/op;  118.5 MB/s
+readrandom   :     0.95614 micros/op;  115.7 MB/s
+readseq      :     0.41751 micros/op;  265.0 MB/s
+readrandom   :     0.96796 micros/op;  114.3 MB/s
+readseq      :     0.42836 micros/op;  258.3 MB/s
+```

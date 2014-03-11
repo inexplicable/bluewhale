@@ -75,7 +75,7 @@ public class DbBenchmark
                             .binDocumentFactory(BinDocumentFactories.RAW)
                             .journalLength(1 << 29)
                             .maxJournals(8)
-                            .maxMemoryMappedJournals(2)
+                            .maxMemoryMappedJournals(4)
                             .persists(false)
                             .build();
         }

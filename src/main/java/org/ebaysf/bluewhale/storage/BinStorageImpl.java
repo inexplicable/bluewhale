@@ -309,21 +309,24 @@ public class BinStorageImpl implements BinStorage {
             if(!Objects.equal(previous.range(), journal.range())){
 
                 if(journal.currentState().isMemoryMapped()){
-                    memoryMappedJournals.put(journal.range(), journal);
-                    continue;
+                    if(!journal.currentState().isWritable()){
+                        memoryMappedJournals.put(journal.range(), journal);
+                    }
                 }
-                navigableBuilder.put(journal.range(), journal);
+                else{
+                    navigableBuilder.put(journal.range(), journal);
+                }
             }
         }
 
         //check for downgrades
         int downgrades = memoryMappedJournals.size() - getMaxMemoryMappedJournals() + 1;
         LOG.info("[storage] downgrades:{} memoryMappedJournals", downgrades);
-        for(Iterator<Map.Entry<Range<Integer>, BinJournal>> it = memoryMappedJournals.entrySet().iterator(); it.hasNext() && downgrades > 0; downgrades -= 1){
+        for(Iterator<Map.Entry<Range<Integer>, BinJournal>> it = memoryMappedJournals.entrySet().iterator(); it.hasNext(); downgrades -= 1){
 
             final Map.Entry<Range<Integer>, BinJournal> entry = it.next();
             try {
-                navigableBuilder.put(entry.getKey(), downgrade(entry.getValue()));
+                navigableBuilder.put(entry.getKey(), downgrades > 0 ? downgrade(entry.getValue()) : entry.getValue());
             }
             catch (FileNotFoundException e) {
                 LOG.error("downgrade failed", e);
