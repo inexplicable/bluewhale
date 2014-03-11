@@ -36,13 +36,16 @@ public class WriterBinJournal extends ByteBufferBinJournal {
         final BinDocumentFactory.BinDocumentWriter writer = _factory.getWriter(document);
 
         final int length = writer.getLength();
-        final int offset = _offset.getAndAdd(length);
+        if(length > _mmap.capacity()){
+            return NEVER_GOING_TO_HAPPEN;
+        }
 
+        final int offset = _offset.getAndAdd(length);
         //-1 when the mmap is filled up
         if(offset + length >= _mmap.limit()){
             //disallow further write after offset immediately
             _mmap.limit(offset);
-            return -1;
+            return INSUFFICIENT_JOURNAL_SPACE;
         }
         //do the actual write when there's enough buffer
         else{

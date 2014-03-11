@@ -92,7 +92,11 @@ public class BinStorageImpl implements BinStorage {
 
         final int offset = _journaling.append(document);
 
-        if(offset < 0){
+        if(offset == BinJournal.NEVER_GOING_TO_HAPPEN){
+            throw new IllegalArgumentException("the document is too large to fit in a single blank journal!");
+        }
+
+        if(offset == BinJournal.INSUFFICIENT_JOURNAL_SPACE){
 
             final BinJournal previous = _journaling;
             try{
@@ -116,7 +120,7 @@ public class BinStorageImpl implements BinStorage {
 
     public @Override BinDocument read(final long token) throws IOException {
 
-        if(token < 0) return null;
+        if(token < 0L) return null;
 
         final BinJournal zone = route(token);
         final int offset = (int)(token & MASK_OFFSET);

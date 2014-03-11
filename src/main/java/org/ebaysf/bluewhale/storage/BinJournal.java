@@ -31,6 +31,9 @@ public interface BinJournal extends Iterable<BinDocument> {
         }
     }
 
+    int NEVER_GOING_TO_HAPPEN = Integer.MIN_VALUE;
+    int INSUFFICIENT_JOURNAL_SPACE = -1;
+
     JournalState currentState();
 
     File local();
