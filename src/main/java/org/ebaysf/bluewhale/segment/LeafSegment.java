@@ -58,9 +58,10 @@ public class LeafSegment extends AbstractSegment {
         _manager.rememberBufferUsedBySegment(Pair.with(local, _mmap), this);
     }
 
-    public @Override <V> V get(Get get) throws ExecutionException, IOException {
+    public @Override <V> V get(final Get get) throws ExecutionException, IOException {
         //promised! no locking on Get
         if(isLeaf()){
+
             final int offset = getOffset(get.getHashCode());
             final long token = _tokens.get(offset);
             final AbstractCache.StatsCounter statsCounter = get.getStatsCounter();
@@ -80,9 +81,11 @@ public class LeafSegment extends AbstractSegment {
 
                 _lock.lock();
 
-                final V loadedByOthers = getIfPresent(offset, token, get);
-                if(loadedByOthers != null){
-                    return loadedByOthers;
+                if(_tokens.get(offset) != token){
+                    final V loadedByOthers = getIfPresent(offset, token, get);
+                    if(loadedByOthers != null){
+                        return loadedByOthers;
+                    }
                 }
 
                 final Future<V> value = configuration().getExecutor().submit(get.<V>getValueLoader());
@@ -102,26 +105,15 @@ public class LeafSegment extends AbstractSegment {
                 _lock.unlock();
             }
         }
-        /*
-            this is the interesting idea needs some explanation.
-            1st of all, remember that the concurrency guarantee is that: non-blocking read and consistent writes
-            therefore when multi threads do readings, they might all find the a segment which is about to be splitted
-            and the ordering is not mandated, which means that the read might see itself as leaf after a split has been done.
-            therefore, when it fails to find the hashed slot after the split, it's possible that it's already splitted and we just try again
-            using super#get which will check whether further routing must be done.
-            2nd thing, why we allowed this is mainly for the maximized parallelism. when split happens, we don't hang any of our reads.
-            and despite the order of concurrent reads and split, the read will successfully find the slot.
-            moreover, this temporary extra routing is to be romoved which we refer to as "rooting" in an asynchronous task.
-            the new leafs will climb up to the be direct children of the root later, in order to save the memory cost by such relay branch nodes.
-            same is done in case of PUT
-        */
+
         return super.get(get);
     }
 
-    public @Override void put(Put put) throws IOException {
+    public @Override void put(final Put put) throws IOException {
         try{
             _lock.lock();
             if(isLeaf()){
+
                 final int offset = getOffset(put.getHashCode());
                 final long next = _tokens.get(offset);
                 if(isPutObsolete(next, put)){
@@ -134,7 +126,7 @@ public class LeafSegment extends AbstractSegment {
                 _tokens.put(offset, token);
 
                 //we must check the size change here, then trigger possible splits
-                if(isSplitRequired(next, put)){
+                if(evaluateSizeAndNeedOfSplit(next, put)){
                     split();
                 }
                 else if(!put.refreshes() && next >= 0){//we won't do path shortening till read spotted the long paths
@@ -170,7 +162,7 @@ public class LeafSegment extends AbstractSegment {
     public @Override void forget(final BinDocument obsolete, final RemovalCause cause) {
 
         if(isLeaf()){
-
+            //the document is being evicted, tell user about the removal
             configuration().getEventBus().post(new RemovalNotificationEvent(obsolete, cause));
         }
         else{
@@ -179,8 +171,9 @@ public class LeafSegment extends AbstractSegment {
     }
 
     public @Override void refresh(final BinDocument origin) {
-
         if(isLeaf()){
+            //the document is likely to be evicted, but still useful, write the same to the latest journal
+            //no path shortening till it's read
             try {
                 put(new PutAsRefresh(origin.getKey(), origin.getValue(), origin.getHashCode(), origin.getState()));
             }
@@ -233,30 +226,7 @@ public class LeafSegment extends AbstractSegment {
     }
 
     /**
-     * <p>
-     * NOTE, as we're going to do more async tasks, like path shortening, async value loadings etc. we'll need to accept
-     * remedy PUTs which might be in fact obsolete as some other updates were written, the only way to prevent that is
-     * to provide modified timestamp to compare.
-     *
-     * Let's see an example here, where a PUT is done, a Path shortening is issued, another thread does another PUT
-     * The consistent result would be that the Path shortening results in a PUT which is older than the 2nd PUT
-     * And therefore, we must filter that out. On the other hand, if it's the other way around, meaning that the 2nd PUT
-     * doesn't happen till the Path shortening is done, both of the PUTs will just happen without causing any problem.
-     *
-     * Another example could be with value loading, though yet supported at this moment. The idea is to speed up Get with value loading,
-     * when multiple threads getting a missing value, all will enter the lock region, only one would be allowed to do the actual Put.
-     * And all the rest would be allowed to enter later, and each will see the token value changed and forced to retry the Get entirely.
-     * As explained above, the performance bottleneck esp. with respect to parallelism is the fact that all threads will be pending on the
-     * one who does the Put. But that's dependant on how fast the value loading could be one. Initially we use busy wait on Future here.
-     * Obviously this isn't the most optimal. An alternative is to Put a value loading document, with value part only indicating that it's a future.
-     * Then the Put will complete as fast as possible, and each other thread will be allowed to see the Future too. Then we use the busy wait to
-     * actually retrieve the value. At least, the bottleneck would be shifted out of the cache structures, and more parallelism achieved.
-     * Well, this isn't the end of it. For one, we must hold the value loading future somehow to allow it to be seen by all threads temporarily.
-     * Next, as we say temporarily, the value loading would finish later, and an actual value would now be a faster resort. We need to do a value resolved
-     * task to update with the loaded value. And that's when we need again, the last modified time. As the loaded value shouldn't use now, but rather
-     * the previously value loading's last modified time so as not to overwrite any later changes.
-     *
-     * </p>
+     * check if a put should be rejected
      * @param next
      * @param put
      * @return
@@ -280,33 +250,44 @@ public class LeafSegment extends AbstractSegment {
     }
 
     /**
-     * happens at any Put command handlings, which calculates the size and verify if a split is needed.
+     * happens at any Put command handlings, which calculates the size and see if a split is needed.
      * @param next
      * @param put
      * @return
      * @throws IOException
      */
-    protected boolean isSplitRequired(final long next, final Put put) throws IOException{
-        //refreshes/invalidates doesn't increase the size!
-        if(put.refreshes()
-                || put.invalidates()
-                || range().upperEndpoint() - range().lowerEndpoint() <= _manager.getSpanAtLeast()) {
+    protected boolean evaluateSizeAndNeedOfSplit(final long next,
+                                                 final Put put) throws IOException {
 
+        //refreshes doesn't modify the size!
+        if(put.refreshes()) {
             return false;
         }
 
+        final boolean noMoreSplit = range().upperEndpoint() - range().lowerEndpoint() <= _manager.getSpanAtLeast();
+
         final BinStorage storage = getStorage();
         final Object key = put.getKey(getKeySerializer());
+
         for(BinDocument doc = storage.read(next); doc != null; doc = storage.read(doc.getNext())){
 
             if(getKeySerializer().equals(key, doc.getKey())){
                 //overwrites a tombstone, size increments
-                return doc.isTombstone() && (_size += 1) > MAX_TOKENS_IN_ONE_SEGMENT;
+                if(!put.invalidates()){
+                    _size += doc.isTombstone() ? 1 : 0;
+                }
+                else{
+                    _size += doc.isTombstone() ? 0 : -1;
+                }
+
+                return !noMoreSplit && _size > MAX_TOKENS_IN_ONE_SEGMENT;
             }
         }
 
         //no previous actions upon this key
-        return (_size += 1) > MAX_TOKENS_IN_ONE_SEGMENT;
+        _size += put.invalidates() ? 0 : 1;
+
+        return !noMoreSplit && _size > MAX_TOKENS_IN_ONE_SEGMENT;
     }
 
     protected void split() throws IOException {

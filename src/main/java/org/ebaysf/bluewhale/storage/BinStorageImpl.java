@@ -186,26 +186,19 @@ public class BinStorageImpl implements BinStorage {
 
             if(!cold.currentState().isEvicted()){
 
-                BinJournal warm = null;
                 try {
-                    if(cold.currentState().isMemoryMapped()){
+                    final BinJournal warm = cold.currentState().isMemoryMapped()
+                            ? new ByteBufferBinJournal(cold.local(), cold.currentState(),
+                                cold.range(), _manager, cold.usage(), _factory, cold.getJournalLength(), cold.getDocumentSize(),
+                                _manager.loadBuffer(cold.local()).getValue1())
+                            : new FileChannelBinJournal(cold.local(),
+                                cold.range(), _manager, cold.usage(), _factory, cold.getJournalLength(), cold.getDocumentSize(),
+                                -1);
 
-                        final FileChannelBinJournal immutable = new FileChannelBinJournal(cold.local(),
-                                cold.range(), _manager, cold.usage(), _factory, cold.getJournalLength(), cold.getDocumentSize(), -1);
-                        warm = immutable;
-                    }
-                    else{
-                        final ByteBufferBinJournal immutable = new ByteBufferBinJournal(cold.local(),
-                                cold.currentState(), cold.range(), _manager, cold.usage(), _factory, cold.getJournalLength(), cold.getDocumentSize(), _manager.loadBuffer(cold.local()).getValue1());
-                        warm = immutable;
-                    }
+                    builder.put(warm.range(), warm);
                 }
                 catch (IOException e) {
                     LOG.error("cold cache warm up failed", e);
-                }
-
-                if(warm != null){
-                    builder.put(warm.range(), warm);
                 }
             }
         }
