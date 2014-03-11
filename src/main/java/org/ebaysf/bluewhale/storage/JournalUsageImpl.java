@@ -26,7 +26,9 @@ public class JournalUsageImpl implements JournalUsage {
 
         if(alives != null){
             _alives = new SparseBitSet(alives.length());
-            _alives.or(alives);
+            if(alives != null && !alives.isEmpty()){
+                _alives.or(alives);
+            }
         }
         else {
             _alives = new SparseBitSet(documents);

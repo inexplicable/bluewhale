@@ -6,7 +6,6 @@ import com.google.common.collect.Range;
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.Files;
 import com.google.gson.Gson;
-import org.brettw.SparseBitSet;
 import org.ebaysf.bluewhale.Cache;
 import org.ebaysf.bluewhale.CacheImpl;
 import org.ebaysf.bluewhale.configurable.CacheBuilder;
@@ -70,28 +69,6 @@ public class GsonsTest {
 
         Assert.assertEquals(origin.getValue1().toNanos(origin.getValue0().longValue()),
                 parsed.getValue1().toNanos(parsed.getValue0().longValue()));
-    }
-
-    @Test
-    public void testGsonWithSparseBitSet(){
-
-        final Gson gson = Gsons.GSON;
-        Assert.assertNotNull(gson);
-
-        final SparseBitSet origin = new SparseBitSet();
-        for(int i = 0; i < 1000000; i += 3){
-            origin.set(i);
-        }
-        final String str = gson.toJson(origin);
-
-        Assert.assertNotNull(str);
-
-        final SparseBitSet parsed = gson.fromJson(str, SparseBitSet.class);
-
-        Assert.assertNotNull(parsed);
-
-        Assert.assertEquals(origin, parsed);
-
     }
 
     @Test

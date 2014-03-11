@@ -17,11 +17,12 @@ public class PutAsRefresh implements Put {
     private static final Logger LOG = LoggerFactory.getLogger(PutAsRefresh.class);
     private static final byte COMPRESSED_OR_TOMBSTONE = BinDocument.COMPRESSED | BinDocument.TOMBSTONE;
 
+    protected final byte _state;
+
     private final ByteBuffer _keyAsByteBuffer;
-    private ByteBuffer _valAsByteBuffer;
+    private final ByteBuffer _valAsByteBuffer;
     private final int _hashCode;
     private final long _lastModified;
-    protected byte _state;
 
     public PutAsRefresh(final ByteBuffer keyAsByteBuffer,
                         final ByteBuffer valAsByteBuffer,
@@ -33,21 +34,29 @@ public class PutAsRefresh implements Put {
         _hashCode = hashCode;
         _lastModified = System.nanoTime();
 
+        ByteBuffer pendingVal = null;
+        byte pendingState = 0x00;
+
         if((state & COMPRESSED_OR_TOMBSTONE) == 0){ //yet compressed, not tombstone
             try {
                 final ByteBuffer compression = Serializers.compress(valAsByteBuffer);
-                _state = (byte)(state | BinDocument.COMPRESSED);
-                _valAsByteBuffer = compression;
-                return;
+                pendingState = (byte)(state | BinDocument.COMPRESSED);
+                pendingVal = compression;
             }
             catch(Exception e) {
                 LOG.error("compression failed", e);
+                pendingState = state;
+                pendingVal = valAsByteBuffer.duplicate();
             }
+        }
+        else{
+            pendingState = state;
+            pendingVal = valAsByteBuffer.duplicate();
         }
 
         //already compressed, or is a tombstone, or compression failed;
-        _state = state;
-        _valAsByteBuffer = valAsByteBuffer.duplicate();
+        _state = pendingState;
+        _valAsByteBuffer = pendingVal;
     }
 
     public @Override <K> K getKey(Serializer<K> keySerializer) {

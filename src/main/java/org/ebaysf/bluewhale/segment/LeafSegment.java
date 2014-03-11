@@ -399,7 +399,7 @@ public class LeafSegment extends AbstractSegment {
             return;
         }
 
-        LOG.info("[segment] path too long, optimization triggered");
+        LOG.debug("[segment] path too long, optimization triggered");
 
         try{
             _lock.lock();
