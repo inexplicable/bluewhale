@@ -116,7 +116,7 @@ public class LeafSegment extends AbstractSegment {
 
                 final int offset = getOffset(put.getHashCode());
                 final long next = _tokens.get(offset);
-                if(isPutObsolete(next, put)){
+                if(isPutObsolete(put, next)){
                     return;//this is because of the background optimization tasks
                 }
 
@@ -227,7 +227,8 @@ public class LeafSegment extends AbstractSegment {
      * @return
      * @throws IOException
      */
-    protected boolean isPutObsolete(final long next, final Put put) throws IOException {
+    protected boolean isPutObsolete(final Put put,
+                                    final long next) throws IOException {
 
         if(!put.refreshes()){
             return false;
@@ -398,7 +399,7 @@ public class LeafSegment extends AbstractSegment {
             return;
         }
 
-        LOG.debug("[segment] path too long, optimization triggered");
+        LOG.info("[segment] path too long, optimization triggered");
 
         try{
             _lock.lock();

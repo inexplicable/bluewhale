@@ -36,7 +36,7 @@ public class PutAsRefresh implements Put {
         if((state & COMPRESSED_OR_TOMBSTONE) == 0){ //yet compressed, not tombstone
             try {
                 final ByteBuffer compression = Serializers.compress(valAsByteBuffer);
-                _state = (byte)(state & BinDocument.COMPRESSED);
+                _state = (byte)(state | BinDocument.COMPRESSED);
                 _valAsByteBuffer = compression;
                 return;
             }

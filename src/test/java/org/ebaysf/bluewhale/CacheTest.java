@@ -8,6 +8,7 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.io.Files;
 import org.ebaysf.bluewhale.configurable.CacheBuilder;
 import org.ebaysf.bluewhale.document.BinDocumentFactories;
+import org.ebaysf.bluewhale.serialization.Serializer;
 import org.ebaysf.bluewhale.serialization.Serializers;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -15,9 +16,11 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -104,6 +107,71 @@ public class CacheTest {
         cache.put("key", "value-modified");
 
         cache.invalidate("key");
+
+        TimeUnit.SECONDS.sleep(1);
+    }
+
+    @Test
+    public void testCacheImplPathShorten() throws IOException, ExecutionException, InterruptedException {
+
+        final File temp = Files.createTempDir();
+        final EventBus eventBus = new EventBus();
+
+        final AtomicBoolean isValueCompressed = new AtomicBoolean(false);
+
+        final Serializer<String> sameHashStringSerializer = new Serializers.AbstractBinComparableSerializer<String>() {
+
+            public @Override int hashCode(final String object){
+                return 1;//always 1;
+            }
+
+            public @Override ByteBuffer serialize(final String object) {
+                return Serializers.STRING_SERIALIZER.serialize(object);
+            }
+
+            public @Override String deserialize(final ByteBuffer binaries,
+                                                final boolean compressed) {
+
+                isValueCompressed.set(compressed);
+                return Serializers.STRING_SERIALIZER.deserialize(binaries, compressed);
+            }
+        };
+
+        final Cache<String, String> cache = CacheBuilder.builder(sameHashStringSerializer, sameHashStringSerializer)
+                .local(temp)
+                .eventBus(eventBus)
+                .executor(_executor)
+                .concurrencyLevel(2)
+                .maxSegmentDepth(2)
+                .binDocumentFactory(BinDocumentFactories.RAW)
+                .journalLength(1 << 20)
+                .maxJournals(8)
+                .maxMemoryMappedJournals(2)
+                .persists(false)
+                .removalListener(new RemovalListener<String, String>() {
+                    @Override
+                    public void onRemoval(RemovalNotification<String, String> notification) {
+
+                        System.out.println(notification);
+                    }
+                })
+                .build();
+
+        Assert.assertNotNull(cache);
+        Assert.assertEquals("value-buried", cache.get("key-buried", new Callable<String>() {
+            public @Override String call() throws Exception {
+                return "value-buried";
+            }
+        }));
+
+        for(int i = 0; i < cache.getConfiguration().getMaxPathDepth(); i +=1){
+            cache.put("key", "value");
+        }
+
+        Assert.assertEquals("value-buried", cache.getIfPresent("key-buried"));
+        Assert.assertFalse(isValueCompressed.get());
+        Assert.assertEquals("value-buried", cache.getIfPresent("key-buried"));
+        Assert.assertTrue(isValueCompressed.get());
 
         TimeUnit.SECONDS.sleep(1);
     }
