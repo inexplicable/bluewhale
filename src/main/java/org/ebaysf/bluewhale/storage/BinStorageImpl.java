@@ -215,6 +215,7 @@ public class BinStorageImpl implements BinStorage {
         acceptWritable(nextWritable());
 
         _eventBus.post(new PersistenceRequiredEvent(this));
+        _eventBus.post(new RequestInvestigationEvent(this));
     }
 
     protected WriterBinJournal nextWritable() throws IOException {

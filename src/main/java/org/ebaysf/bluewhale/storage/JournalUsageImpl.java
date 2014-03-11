@@ -9,7 +9,7 @@ public class JournalUsageImpl implements JournalUsage {
 
     private final long _lastModified;
     private final int _documents;
-    private final SparseBitSet _alives;
+    private final transient SparseBitSet _alives;
 
     public JournalUsageImpl(final long lastModified,
                             final int documents){
