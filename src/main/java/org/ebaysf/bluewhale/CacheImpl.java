@@ -64,6 +64,12 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
         _configuration.getEventBus().register(this);
 
         _navigableSegments = _manager.initSegments(Preconditions.checkNotNull(coldSegments), _storage);
+
+        if(!coldSegments.isEmpty()){
+            //by now, both segments and journals from cold cache have been loaded, we need to get
+            //both usage information updated, and evict unused data if any.
+            _configuration.getEventBus().post(new RequestInvestigationEvent(_storage));
+        }
     }
 
     public @Override Configuration getConfiguration() {

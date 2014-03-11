@@ -102,8 +102,4 @@ public class PutAsRefresh implements Put {
     public @Override boolean compresses() {
         return (_state & BinDocument.COMPRESSED) != 0;
     }
-
-    public @Override boolean suppressRemovalNotification() {
-        return true;
-    }
 }

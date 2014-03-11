@@ -62,10 +62,6 @@ public class PutAsIs implements Put {
         return false;
     }
 
-    public @Override boolean suppressRemovalNotification(){
-        return false;
-    }
-
     public @Override long getLastModified() {
         return _lastModified;
     }

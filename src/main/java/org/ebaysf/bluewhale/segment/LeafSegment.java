@@ -126,12 +126,7 @@ public class LeafSegment extends AbstractSegment {
                 _tokens.put(offset, token);
 
                 //we must check the size change here, then trigger possible splits
-                if(evaluateSizeAndNeedOfSplit(next, put)){
-                    split();
-                }
-                else if(!put.refreshes() && next >= 0){//we won't do path shortening till read spotted the long paths
-                    notifyRemoval(put, next);
-                }
+                evaluateEffectOfPut(put, next);
 
                 _configuration.getEvictionStrategy().afterPut(this, storage, token, document);
                 return;//must return here, otherwise it goes into infinite recursion.
@@ -250,18 +245,22 @@ public class LeafSegment extends AbstractSegment {
     }
 
     /**
-     * happens at any Put command handlings, which calculates the size and see if a split is needed.
-     * @param next
+     * evaluate after Put, the change of _size, and whether RemovalNotificationEvent must be raised. then whether a #split will be needed.
      * @param put
-     * @return
+     * @param next
      * @throws IOException
      */
-    protected boolean evaluateSizeAndNeedOfSplit(final long next,
-                                                 final Put put) throws IOException {
+    protected void evaluateEffectOfPut(final Put put,
+                                       final long next) throws IOException {
 
-        //refreshes doesn't modify the size!
-        if(put.refreshes()) {
-            return false;
+        if(put.refreshes()){
+            return;//refresh should have no effect on the data, size shouldn't change, nothing got removed either.
+        }
+
+        if(next < 0L){
+            _size += put.invalidates() ? 0 : 1;
+            //next token points to no one. size increases if PutAsIs, no change if PutAsInvalidate (users' error tolerated)
+            return;
         }
 
         final boolean noMoreSplit = range().upperEndpoint() - range().lowerEndpoint() <= _manager.getSpanAtLeast();
@@ -272,22 +271,40 @@ public class LeafSegment extends AbstractSegment {
         for(BinDocument doc = storage.read(next); doc != null; doc = storage.read(doc.getNext())){
 
             if(getKeySerializer().equals(key, doc.getKey())){
-                //overwrites a tombstone, size increments
-                if(!put.invalidates()){
-                    _size += doc.isTombstone() ? 1 : 0;
+
+                if(!put.invalidates() && !doc.isTombstone()){
+                    //put overwrites some old value
+                    configuration().getEventBus().post(new RemovalNotificationEvent(doc, RemovalCause.REPLACED));
+                }
+                else if(!put.invalidates() && doc.isTombstone()){
+                    //put is conceptually new
+                    _size += 1;
+
+                    if(!noMoreSplit && _size > MAX_TOKENS_IN_ONE_SEGMENT){
+                        split();
+                    }
+                }
+                else if(put.invalidates() && !doc.isTombstone()){
+                    //put invalidates some old value
+                    configuration().getEventBus().post(new RemovalNotificationEvent(doc, RemovalCause.EXPLICIT));
                 }
                 else{
-                    _size += doc.isTombstone() ? 0 : -1;
+                    //put.invalidate() && doc.isTombstone()
+                    //nothing should happen!
                 }
-
-                return !noMoreSplit && _size > MAX_TOKENS_IN_ONE_SEGMENT;
+                return;
             }
         }
 
-        //no previous actions upon this key
-        _size += put.invalidates() ? 0 : 1;
+        //nothing overwritten, this is the 1st time this key was created.
+        if(!put.invalidates()){
 
-        return !noMoreSplit && _size > MAX_TOKENS_IN_ONE_SEGMENT;
+            _size += 1;
+
+            if(!noMoreSplit && _size > MAX_TOKENS_IN_ONE_SEGMENT){
+                split();
+            }
+        }
     }
 
     protected void split() throws IOException {
@@ -348,31 +365,6 @@ public class LeafSegment extends AbstractSegment {
 
         //this triggers tasks like RootingTask
         configuration().getEventBus().post(new SegmentSplitEvent(this, getChildren()));
-    }
-
-    protected void notifyRemoval(final Put put, final long token) {
-
-        if(!put.suppressRemovalNotification()){
-
-            final Serializer<Object> keySerializer = getKeySerializer();
-            final Object key = put.getKey(keySerializer);
-            final BinStorage storage = getStorage();
-            final RemovalCause cause = put.invalidates() ? RemovalCause.EXPLICIT : RemovalCause.REPLACED;
-
-            try {
-                for(BinDocument doc = storage.read(token); doc != null; doc = storage.read(doc.getNext())){
-                    if(keySerializer.equals(key, doc.getKey())){
-                        if(!doc.isTombstone()){
-                            configuration().getEventBus().post(new RemovalNotificationEvent(doc, cause));
-                        }
-                        return;
-                    }
-                }
-            }
-            catch (IOException e) {
-                LOG.error("removal notification failed", e);
-            }
-        }
     }
 
     @Subscribe
