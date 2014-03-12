@@ -63,10 +63,10 @@ public class LeafSegment extends AbstractSegment {
         if(isLeaf()){
 
             final int offset = getOffset(get.getHashCode());
-            final long token = _tokens.get(offset);
+            final long head = _tokens.get(offset);
             final AbstractCache.StatsCounter statsCounter = get.getStatsCounter();
 
-            final V hit = getIfPresent(offset, token, get);
+            final V hit = getIfPresent(get, offset, head);
             if(hit != null){
                 statsCounter.recordHits(1);
                 return hit;
@@ -81,8 +81,8 @@ public class LeafSegment extends AbstractSegment {
 
                 _lock.lock();
 
-                if(_tokens.get(offset) != token){
-                    final V loadedByOthers = getIfPresent(offset, token, get);
+                if(_tokens.get(offset) != head){
+                    final V loadedByOthers = getIfPresent(get, offset, head);
                     if(loadedByOthers != null){
                         return loadedByOthers;
                     }
@@ -142,9 +142,9 @@ public class LeafSegment extends AbstractSegment {
 
         if(isLeaf()){
             //uses is much like get, in terms of non-blocking nature, even if the segment gets splitted async
-            final long token = _tokens.get(getOffset(suspect.getHashCode()));
+            final long head = _tokens.get(getOffset(suspect.getHashCode()));
             try {
-                return token >= 0 && using(suspect.getKey(), token, suspect.getLastModified(), suspect.getNext());
+                return head >= 0 && using(suspect.getKey(), head, suspect.getLastModified(), suspect.getNext());
             }
             catch (IOException e) {
                 LOG.error("usage tracking failed", e);
@@ -154,7 +154,8 @@ public class LeafSegment extends AbstractSegment {
         return super.using(suspect);
     }
 
-    public @Override void forget(final BinDocument obsolete, final RemovalCause cause) {
+    public @Override void forget(final BinDocument obsolete,
+                                 final RemovalCause cause) {
 
         if(isLeaf()){
             //the document is being evicted, tell user about the removal
@@ -181,15 +182,18 @@ public class LeafSegment extends AbstractSegment {
         }
     }
 
-    protected boolean using(final ByteBuffer keyAsBytes, final long token, final long lastModified, final long next) throws IOException {
+    protected boolean using(final ByteBuffer keyAsBytes,
+                            final long head,
+                            final long lastModified,
+                            final long next) throws IOException {
 
         final BinStorage storage = getStorage();
         final Serializer keySerializer = getKeySerializer();
 
         //check each doc in the path, including the suspect itself, if there's any element of equivalent key
         //compare their last modified time, if there's newer document than suspect, return using=false, otherwise true
-        for(BinDocument doc = storage.read(token); doc != null; doc = storage.read(doc.getNext())){
-            if(keySerializer.equals(keyAsBytes, doc.getKey())){
+        for(BinDocument doc = storage.read(head); doc != null; doc = storage.read(doc.getNext())){
+            if(keySerializer.equals(keyAsBytes.duplicate(), doc.getKey())){
                 return lastModified >= doc.getLastModified() && next == doc.getNext();
             }
         }
@@ -197,13 +201,16 @@ public class LeafSegment extends AbstractSegment {
         return false;
     }
 
-    protected <V> V getIfPresent(final int offset, long token, final Get get) throws IOException{
+    protected <V> V getIfPresent(final Get get,
+                                 final int offset,
+                                 final long head) throws IOException{
 
         final BinStorage storage = getStorage();
         final Serializer keySerializer = getKeySerializer();
         final Object key = get.getKey();
 
         int length = 0;
+        long token = head;
         try{
             for(BinDocument doc = storage.read(token); doc != null; token = doc.getNext(), doc = storage.read(token), length += 1){
                 if(keySerializer.equals(key, doc.getKey())){
@@ -215,7 +222,7 @@ public class LeafSegment extends AbstractSegment {
         }
         finally {
             if(length >= _configuration.getMaxPathDepth()){
-                configuration().getEventBus().post(new PathTooLongEvent(this, offset, _tokens.get(offset)));
+                configuration().getEventBus().post(new PathTooLongEvent(this, offset, head));
             }
         }
     }
