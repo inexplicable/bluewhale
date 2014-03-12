@@ -299,9 +299,10 @@ public class BinStorageImpl implements BinStorage {
         int age = 0, numOfJournals = _navigableJournals.asMapOfRanges().size();
         for(BinJournal journal : this) {
 
+            //things only get dangerous when the journals are full.
             if(numOfJournals == _configuration.getMaxJournals()){
-                age += 1;
-                if(age < _configuration.getDangerousJournalsRatio() * numOfJournals){
+                //at least the oldest journal is considered dangerous.
+                if(age == 0 || (age += 1) < _configuration.getDangerousJournalsRatio() * numOfJournals){
                     dangerBuilder.add(journal.range());
                 }
             }
