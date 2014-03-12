@@ -14,7 +14,9 @@ public class ByteBufferBinDocumentRawReader implements BinDocumentFactory.BinDoc
     protected final int _keyLength;
     protected final int _valLength;
     
-    public ByteBufferBinDocumentRawReader(final ByteBuffer buffer, final int offset){
+    public ByteBufferBinDocumentRawReader(final ByteBuffer buffer,
+                                          final int offset){
+
         _buffer = buffer.duplicate();
         _offset = offset;
 
@@ -25,6 +27,7 @@ public class ByteBufferBinDocumentRawReader implements BinDocumentFactory.BinDoc
     }
 
     public @Override ByteBuffer getKey() {
+
         final ByteBuffer keyBuffer = _buffer.duplicate();
         final int pos = _offset + OFFSET_OF_KEY;
         keyBuffer.position(pos).limit(pos + _keyLength);
@@ -32,6 +35,7 @@ public class ByteBufferBinDocumentRawReader implements BinDocumentFactory.BinDoc
     }
 
     public @Override ByteBuffer getValue() {
+
         final ByteBuffer valBuffer = _buffer.duplicate();
         final int pos = _offset + OFFSET_OF_KEY + _keyLength;
         valBuffer.position(pos).limit(pos + _valLength);
@@ -39,14 +43,17 @@ public class ByteBufferBinDocumentRawReader implements BinDocumentFactory.BinDoc
     }
 
     public @Override int getHashCode() {
+
         return _buffer.getInt(_offset + OFFSET_OF_HASHCODE);
     }
 
     public @Override long getNext() {
+
         return _buffer.getLong(_offset + OFFSET_OF_NEXT);
     }
 
     public @Override long getLastModified() {
+
         return _buffer.getLong(_offset + OFFSET_OF_LASTMODIFIED);
     }
 
@@ -71,6 +78,7 @@ public class ByteBufferBinDocumentRawReader implements BinDocumentFactory.BinDoc
     }
 
     public @Override int getLength(){
+
         return BinDocumentRaw.getLength(_keyLength, _valLength);
     }
 }

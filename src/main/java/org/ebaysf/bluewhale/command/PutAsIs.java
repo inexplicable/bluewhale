@@ -62,10 +62,6 @@ public class PutAsIs implements Put {
         return false;
     }
 
-    public @Override long getNext() {
-        return -1L;
-    }
-
     public @Override <K, V> BinDocument create(final Serializer<K> keySerializer,
                                                final Serializer<V> valSerializer,
                                                final long next) {

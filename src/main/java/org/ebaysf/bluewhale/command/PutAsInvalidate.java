@@ -24,8 +24,8 @@ public class PutAsInvalidate extends PutAsIs {
     }
 
     public @Override <K, V> BinDocument create(final Serializer<K> keySerializer,
-                              final Serializer<V> valSerializer,
-                              final long next) {
+                                               final Serializer<V> valSerializer,
+                                               final long next) {
 
         return new BinDocumentRaw()
                 .setKey(getKeyAsByteBuffer(keySerializer))

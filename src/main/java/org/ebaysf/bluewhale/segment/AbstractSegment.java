@@ -145,6 +145,7 @@ public abstract class AbstractSegment implements Segment {
     }
 
     public @Override String toString(){
+
         return new StringBuilder()
                 .append("segment=")
                 .append(_range)

@@ -36,7 +36,7 @@ public abstract class Gsons {
 
     private static final Logger LOG = LoggerFactory.getLogger(Gsons.class);
 
-    private static final GsonBuilder _gsonBuilder = new GsonBuilder()
+    private static final GsonBuilder GSON_BLDR = new GsonBuilder()
             .serializeNulls()
             .excludeFieldsWithModifiers(Modifier.TRANSIENT, Modifier.STATIC);
 
@@ -45,7 +45,7 @@ public abstract class Gsons {
     private static final Pattern TTL_PATTERN = Pattern.compile("([0-9]+)ns");
 
     static {
-        _gsonBuilder.registerTypeAdapter(File.class, new JsonSerializer<File>() {
+        GSON_BLDR.registerTypeAdapter(File.class, new JsonSerializer<File>() {
 
             public @Override JsonElement serialize(final File file,
                                                    final Type type,
@@ -55,7 +55,7 @@ public abstract class Gsons {
             }
         });
 
-        _gsonBuilder.registerTypeAdapter(File.class, new JsonDeserializer<File>() {
+        GSON_BLDR.registerTypeAdapter(File.class, new JsonDeserializer<File>() {
 
             public @Override File deserialize(final JsonElement json,
                                     final Type typeOfT,
@@ -65,7 +65,7 @@ public abstract class Gsons {
             }
         });
 
-        _gsonBuilder.registerTypeAdapter(TTL_TYPE, new JsonSerializer<Pair<Long, TimeUnit>>() {
+        GSON_BLDR.registerTypeAdapter(TTL_TYPE, new JsonSerializer<Pair<Long, TimeUnit>>() {
 
             public @Override JsonElement serialize(final Pair<Long, TimeUnit> ttl,
                                                    final Type type,
@@ -75,7 +75,7 @@ public abstract class Gsons {
             }
         });
 
-        _gsonBuilder.registerTypeAdapter(TTL_TYPE, new JsonDeserializer<Pair<Long, TimeUnit>>() {
+        GSON_BLDR.registerTypeAdapter(TTL_TYPE, new JsonDeserializer<Pair<Long, TimeUnit>>() {
 
             public @Override Pair<Long, TimeUnit> deserialize(final JsonElement json,
                                                               final Type typeOfT,
@@ -90,7 +90,7 @@ public abstract class Gsons {
             }
         });
 
-        _gsonBuilder.registerTypeAdapter(Range.class, new JsonSerializer<Range<Integer>>() {
+        GSON_BLDR.registerTypeAdapter(Range.class, new JsonSerializer<Range<Integer>>() {
 
             public @Override JsonElement serialize(final Range<Integer> range,
                                                    final Type type,
@@ -103,7 +103,7 @@ public abstract class Gsons {
             }
         });
 
-        _gsonBuilder.registerTypeAdapter(Range.class, new JsonDeserializer<Range<Integer>>() {
+        GSON_BLDR.registerTypeAdapter(Range.class, new JsonDeserializer<Range<Integer>>() {
 
             public @Override Range<Integer> deserialize(final JsonElement jsonElement,
                                                         final Type type,
@@ -116,7 +116,7 @@ public abstract class Gsons {
             }
         });
 
-        _gsonBuilder.registerTypeAdapter(Segment.class, new JsonDeserializer<Segment>() {
+        GSON_BLDR.registerTypeAdapter(Segment.class, new JsonDeserializer<Segment>() {
 
             public @Override Segment deserialize(final JsonElement jsonElement,
                                                  final Type type,
@@ -132,7 +132,7 @@ public abstract class Gsons {
             }
         });
 
-        _gsonBuilder.registerTypeAdapter(RangeMap.class, new JsonSerializer<RangeMap<Integer, Object>>() {
+        GSON_BLDR.registerTypeAdapter(RangeMap.class, new JsonSerializer<RangeMap<Integer, Object>>() {
 
             public @Override JsonElement serialize(final RangeMap<Integer, Object> rangeMap,
                                                    final Type type,
@@ -149,7 +149,7 @@ public abstract class Gsons {
             }
         });
 
-        _gsonBuilder.registerTypeAdapter(JournalUsage.class, new JsonSerializer<JournalUsage>() {
+        GSON_BLDR.registerTypeAdapter(JournalUsage.class, new JsonSerializer<JournalUsage>() {
 
             public @Override JsonElement serialize(final JournalUsage source,
                                                    final Type typeOfSrc,
@@ -164,7 +164,7 @@ public abstract class Gsons {
             }
         });
 
-        _gsonBuilder.registerTypeAdapter(JournalUsage.class, new JsonDeserializer<JournalUsage>() {
+        GSON_BLDR.registerTypeAdapter(JournalUsage.class, new JsonDeserializer<JournalUsage>() {
 
             public @Override JournalUsage deserialize(final JsonElement jsonElement,
                                                       final Type typeOfT,
@@ -180,7 +180,7 @@ public abstract class Gsons {
             }
         });
 
-        _gsonBuilder.registerTypeAdapter(BinJournal.class, new JsonSerializer<BinJournal>() {
+        GSON_BLDR.registerTypeAdapter(BinJournal.class, new JsonSerializer<BinJournal>() {
 
             public @Override JsonElement serialize(final BinJournal source,
                                                    final Type typeOfSrc,
@@ -198,7 +198,7 @@ public abstract class Gsons {
             }
         });
 
-        _gsonBuilder.registerTypeAdapter(BinJournal.class, new JsonDeserializer<BinJournal>() {
+        GSON_BLDR.registerTypeAdapter(BinJournal.class, new JsonDeserializer<BinJournal>() {
 
             public @Override BinJournal deserialize(final JsonElement jsonElement,
                                                     final Type type,
@@ -217,7 +217,7 @@ public abstract class Gsons {
             }
         });
 
-        _gsonBuilder.registerTypeAdapter(Configuration.class, new JsonSerializer<Configuration>() {
+        GSON_BLDR.registerTypeAdapter(Configuration.class, new JsonSerializer<Configuration>() {
 
             public @Override JsonElement serialize(final Configuration source,
                                                    final Type typeOfSrc,
@@ -239,7 +239,7 @@ public abstract class Gsons {
             }
         });
 
-        _gsonBuilder.registerTypeAdapter(Configuration.class, new JsonDeserializer<Configuration>() {
+        GSON_BLDR.registerTypeAdapter(Configuration.class, new JsonDeserializer<Configuration>() {
 
             public @Override Configuration deserialize(final JsonElement json,
                                                        final Type typeOfT,
@@ -264,7 +264,7 @@ public abstract class Gsons {
         });
     }
 
-    public static final Gson GSON = _gsonBuilder.create();
+    public static final Gson GSON = GSON_BLDR.create();
 
     public static <K, V> File persist(final Cache<K, V> cache) throws IOException {
 

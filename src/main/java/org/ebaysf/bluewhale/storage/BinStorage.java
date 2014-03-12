@@ -47,6 +47,10 @@ public interface BinStorage extends Iterable<BinJournal> {
      */
     BinJournal route(final long token);
 
+    /**
+     * @param token
+     * @return boolean whether the document readable at the token is about to be evicted by size.
+     */
     boolean isDangerous(final long token);
 
     UsageTrack getUsageTrack();
@@ -56,7 +60,5 @@ public interface BinStorage extends Iterable<BinJournal> {
     int getMaxJournals();
 
     int getMaxMemoryMappedJournals();
-
-    int getEvictedJournals();
 
 }

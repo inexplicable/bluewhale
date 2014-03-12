@@ -12,7 +12,8 @@ public class PostExpansionEvent extends EventObject {
 
     private final BinJournal _previous;
 
-    public PostExpansionEvent(final BinStorage source, final BinJournal previous) {
+    public PostExpansionEvent(final BinStorage source,
+                              final BinJournal previous) {
 
         super(source);
 

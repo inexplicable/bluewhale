@@ -11,17 +11,20 @@ public class DocumentLengthAnticipatedEvent extends EventObject {
 
     private final int _documentLengthAnticipated;
 
-    public DocumentLengthAnticipatedEvent(final BinJournal source, final int documentLengthAnticipated){
-        super(source);
+    public DocumentLengthAnticipatedEvent(final BinJournal source,
+                                          final int documentLengthAnticipated){
 
+        super(source);
         _documentLengthAnticipated = documentLengthAnticipated;
     }
 
     public @Override BinJournal getSource(){
+
         return (BinJournal)super.getSource();
     }
 
     public int getDocumentLengthAnticipated(){
+
         return _documentLengthAnticipated;
     }
 }

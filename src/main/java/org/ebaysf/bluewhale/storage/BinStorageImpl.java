@@ -161,11 +161,6 @@ public class BinStorageImpl implements BinStorage {
         return _configuration.getMaxMemoryMappedJournals();
     }
 
-    public @Override int getEvictedJournals() {
-
-        return Collections2.filter(_navigableJournals.asMapOfRanges().values(), JOURNAL_EVICTED).size();
-    }
-
     public @Override Iterator<BinJournal> iterator() {
 
         final List<BinJournal> orderedByLastModified = Lists.newArrayList(_navigableJournals.asMapOfRanges().values());

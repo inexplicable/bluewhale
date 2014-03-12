@@ -7,7 +7,7 @@ import java.util.EventObject;
  */
 public class PersistenceRequiredEvent extends EventObject {
 
-    public PersistenceRequiredEvent(Object source) {
+    public PersistenceRequiredEvent(final Object source) {
 
         super(source);
     }

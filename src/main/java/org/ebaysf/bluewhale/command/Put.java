@@ -22,8 +22,6 @@ public interface Put {
 
     int getHashCode();
 
-    long getNext();
-
     long getLastModified();
 
     boolean invalidates();

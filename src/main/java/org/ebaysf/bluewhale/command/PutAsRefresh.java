@@ -76,8 +76,8 @@ public class PutAsRefresh implements Put {
     }
 
     public @Override <K, V> BinDocument create(final Serializer<K> keySerializer,
-                                     final Serializer<V> valSerializer,
-                                     final long next) {
+                              final Serializer<V> valSerializer,
+                              final long next) {
 
         return new BinDocumentRaw()
                 .setKey(getKeyAsByteBuffer(keySerializer))
@@ -90,10 +90,6 @@ public class PutAsRefresh implements Put {
 
     public @Override int getHashCode() {
         return _hashCode;
-    }
-
-    public @Override long getNext() {
-        return -1L;
     }
 
     public @Override long getLastModified() {

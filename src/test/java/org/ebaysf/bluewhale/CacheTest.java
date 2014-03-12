@@ -245,6 +245,14 @@ public class CacheTest {
         Assert.assertTrue(segmentAfterOverwrite.using(documentAfterOverwrite));
         Assert.assertFalse(segmentAfterOverwrite.using(originalDocument));
 
+        originalSegment.refresh(documentAfterOverwrite);
+        final BinDocument documentAfterRefresh = documentRef.get();
+
+        Assert.assertNotSame(documentAfterOverwrite, documentAfterRefresh);
+        Assert.assertTrue(originalSegment.using(documentAfterRefresh));
+        Assert.assertFalse(originalSegment.using(documentAfterOverwrite));
+        Assert.assertEquals("value-modified", cache.getIfPresent("key"));
+
         cache.invalidate("key");
 
         final Segment segmentAfterInvalidate = segmentRef.get();
@@ -255,6 +263,7 @@ public class CacheTest {
         Assert.assertTrue(segmentAfterInvalidate.using(documentAfterInvalidate));
         Assert.assertFalse(segmentAfterInvalidate.using(originalDocument));
         Assert.assertFalse(segmentAfterInvalidate.using(documentAfterOverwrite));
+        Assert.assertFalse(segmentAfterInvalidate.using(documentAfterRefresh));
 
 
         TimeUnit.SECONDS.sleep(1);

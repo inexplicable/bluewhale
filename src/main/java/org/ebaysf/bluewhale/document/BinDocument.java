@@ -15,14 +15,29 @@ public interface BinDocument {
     byte VALUE_LOADING = 0x02;
     byte COMPRESSED = 0x04;
 
+    /**
+     * @return key as ByteBuffer
+     */
     ByteBuffer getKey();
 
+    /**
+     * @return value as ByteBuffer
+     */
     ByteBuffer getValue();
 
+    /**
+     * @return hashCode of key, @see Serializer#hashCode
+     */
     int getHashCode();
 
+    /**
+     * @return next token linking to the previous document in the hash slot
+     */
     long getNext();
 
+    /**
+     * @return last modified time of the document
+     */
     long getLastModified();
 
     /**
@@ -32,8 +47,14 @@ public interface BinDocument {
      */
     byte getState();
 
+    /**
+     * @return boolean whether the document was created by @see PutAsInvalidate
+     */
     boolean isTombstone();
 
+    /**
+     * @return boolean whether the document value has been compressed using snappy
+     */
     boolean isCompressed();
 
     /**

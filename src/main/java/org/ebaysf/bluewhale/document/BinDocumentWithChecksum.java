@@ -8,7 +8,8 @@ import java.util.zip.CRC32;
  */
 public class BinDocumentWithChecksum extends BinDocumentRaw {
 
-    public static int getLength(final int keyLength, final int valLength) {
+    public static int getLength(final int keyLength,
+                                final int valLength) {
 
         return BYTES_OF_INT //length of `key` buffer, highest byte as for `state`
                 + BYTES_OF_INT //length of `value' buffer
@@ -20,7 +21,9 @@ public class BinDocumentWithChecksum extends BinDocumentRaw {
                 + BYTES_OF_LONG;//checksum
     }
 
-    public static long getChecksum(final ByteBuffer buffer, final int offset, final int length) {
+    public static long getChecksum(final ByteBuffer buffer,
+                                   final int offset,
+                                   final int length) {
 
         final CRC32 crc32 = new CRC32();
         if(buffer.hasArray()){

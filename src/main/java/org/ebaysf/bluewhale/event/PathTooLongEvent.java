@@ -12,7 +12,9 @@ public class PathTooLongEvent extends EventObject {
     private final int _offset;
     private final long _token;
 
-    public PathTooLongEvent(final Segment segment, final int offset, final long headToken) {
+    public PathTooLongEvent(final Segment segment,
+                            final int offset,
+                            final long headToken) {
 
         super(segment);
 
@@ -21,10 +23,12 @@ public class PathTooLongEvent extends EventObject {
     }
 
     public @Override Segment getSource() {
+
         return (Segment)super.getSource();
     }
 
     public int getOffset() {
+
         return _offset;
     }
 

@@ -25,6 +25,7 @@ public class BinDocumentWithChecksumWriter extends BinDocumentRawWriter {
     }
 
     public @Override int getLength() {
+
         return BinDocumentWithChecksum.getLength(getKey().remaining(), getValue().remaining());
     }
 
@@ -32,7 +33,8 @@ public class BinDocumentWithChecksumWriter extends BinDocumentRawWriter {
     private static final int STATE_SHIFTS = Integer.SIZE - Byte.SIZE;
     private static final int STATE_AND_KEY_LENGTH_SHIFTS = Integer.SIZE;
 
-    public @Override void write(final ByteBuffer buffer, final int offset) {
+    public @Override void write(final ByteBuffer buffer,
+                                final int offset) {
 
         final ByteBuffer key = getKey();
         final ByteBuffer val = getValue();

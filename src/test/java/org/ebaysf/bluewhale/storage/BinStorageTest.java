@@ -57,7 +57,6 @@ public class BinStorageTest {
         Assert.assertEquals(1 << 20, storage.getJournalLength());
         Assert.assertEquals(8, storage.getMaxJournals());
         Assert.assertEquals(2, storage.getMaxMemoryMappedJournals());
-        Assert.assertEquals(0, storage.getEvictedJournals());
         Assert.assertNotNull(storage.getUsageTrack());
 
         storage.read(0L);

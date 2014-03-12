@@ -8,7 +8,8 @@ import java.util.zip.CRC32;
  */
 public class ByteBufferBinDocumentWithChecksumReader extends ByteBufferBinDocumentRawReader {
 
-    public ByteBufferBinDocumentWithChecksumReader(final ByteBuffer buffer, final int offset) {
+    public ByteBufferBinDocumentWithChecksumReader(final ByteBuffer buffer,
+                                                   final int offset) {
 
         super(buffer, offset);
     }

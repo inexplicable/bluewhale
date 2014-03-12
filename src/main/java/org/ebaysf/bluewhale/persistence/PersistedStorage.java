@@ -58,10 +58,6 @@ public class PersistedStorage implements BinStorage {
         throw new UnsupportedOperationException();
     }
 
-    public @Override int getEvictedJournals() {
-        throw new UnsupportedOperationException();
-    }
-
     public @Override Iterator<BinJournal> iterator() {
         return _navigableJournals.iterator();
     }

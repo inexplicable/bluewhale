@@ -13,10 +13,10 @@ public class SegmentSplitEvent extends EventObject {
 
     private final List<Segment> _splitted;
 
-    public SegmentSplitEvent(final Segment source, final List<Segment> splitted) {
+    public SegmentSplitEvent(final Segment source,
+                             final List<Segment> splitted) {
 
         super(source);
-
         _splitted = Lists.newArrayList(splitted);
     }
 

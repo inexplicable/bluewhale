@@ -46,12 +46,14 @@ public class FileChannelBinDocumentRawReader implements BinDocumentFactory.BinDo
     }
 
     public @Override ByteBuffer getKey() {
+
         final ByteBuffer keyBuffer = _buffer.duplicate();
         keyBuffer.position(OFFSET_OF_KEY).limit(OFFSET_OF_KEY + _keyLength);
         return keyBuffer;
     }
 
     public @Override ByteBuffer getValue() {
+
         final ByteBuffer valBuffer = _buffer.duplicate();
         final int pos = OFFSET_OF_KEY + _keyLength;
         valBuffer.position(pos).limit(pos + _valLength);
@@ -59,14 +61,17 @@ public class FileChannelBinDocumentRawReader implements BinDocumentFactory.BinDo
     }
 
     public @Override int getHashCode() {
+
         return _buffer.getInt(OFFSET_OF_HASHCODE);
     }
 
     public @Override long getNext() {
+
         return _buffer.getLong(OFFSET_OF_NEXT);
     }
 
     public @Override long getLastModified() {
+
         return _buffer.getLong(OFFSET_OF_LASTMODIFIED);
     }
 
@@ -75,10 +80,12 @@ public class FileChannelBinDocumentRawReader implements BinDocumentFactory.BinDo
     }
 
     public @Override boolean isTombstone(){
+
         return (_state & TOMBSTONE) != 0;
     }
 
     public @Override boolean isCompressed(){
+
         return (_state & COMPRESSED) != 0;
     }
 
@@ -91,6 +98,7 @@ public class FileChannelBinDocumentRawReader implements BinDocumentFactory.BinDo
     }
 
     public @Override int getLength(){
+
         return BinDocumentRaw.getLength(_keyLength, _valLength);
     }
 }
