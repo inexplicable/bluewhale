@@ -38,6 +38,14 @@ readseq      :     1.09180 micros/op;  101.3 MB/s
 * RAM, Disk consumption constraints
 * Transient or Persistent caching based on configuration
 * Data Integrity protection via optional binary document checksum
+ 
+# Minimal to start:
+```java
+final Cache<String, String> cache = CacheBuilder.builder(Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
+                        .build();
+```
+* Only the `Serializer` is mandatory, everything else got meaningful defaults, and could be further configured.
+* You got yourself a transient `Cache`, ready to accept `Put`, `Get` etc. The temporary files created will be released at JVM exit.
 
 # Developer Notes:
 * The primary API of the bluewhale caching is `org.ebaysf.bluewhale.Cache` and `org.ebaysf.bluewhale.configurable.CacheBuilder` similar to `com.google.common.cache.*`
