@@ -1,15 +1,20 @@
 package org.ebaysf.bluewhale;
 
 import com.google.common.base.Strings;
+import com.google.common.cache.RemovalCause;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.Files;
 import org.ebaysf.bluewhale.configurable.CacheBuilder;
+import org.ebaysf.bluewhale.configurable.EvictionStrategy;
+import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.document.BinDocumentFactories;
+import org.ebaysf.bluewhale.segment.Segment;
 import org.ebaysf.bluewhale.serialization.Serializer;
 import org.ebaysf.bluewhale.serialization.Serializers;
+import org.ebaysf.bluewhale.storage.BinStorage;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
@@ -17,11 +22,13 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Created by huzhou on 3/3/14.
@@ -71,6 +78,8 @@ public class CacheTest {
         final File temp = Files.createTempDir();
         final EventBus eventBus = new EventBus();
 
+        final List<RemovalCause> actualCauses = Lists.newLinkedList();
+        final List<String> actualRemovedValues = Lists.newLinkedList();
         final Cache<String, String> cache = CacheBuilder.builder(Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
                 .local(temp)
                 .eventBus(eventBus)
@@ -83,10 +92,9 @@ public class CacheTest {
                 .maxMemoryMappedJournals(2)
                 .persists(false)
                 .removalListener(new RemovalListener<String, String>() {
-                    @Override
-                    public void onRemoval(RemovalNotification<String, String> notification) {
-
-                        System.out.println(notification);
+                    public @Override void onRemoval(final RemovalNotification<String, String> notification) {
+                        actualCauses.add(notification.getCause());
+                        actualRemovedValues.add(notification.getValue());
                     }
                 })
                 .build();
@@ -107,6 +115,9 @@ public class CacheTest {
         cache.put("key", "value-modified");
 
         cache.invalidate("key");
+
+        Assert.assertEquals(Arrays.asList(RemovalCause.EXPLICIT, RemovalCause.REPLACED, RemovalCause.EXPLICIT), actualCauses);
+        Assert.assertEquals(Arrays.asList("value", "value", "value-modified"), actualRemovedValues);
 
         TimeUnit.SECONDS.sleep(1);
     }
@@ -172,6 +183,79 @@ public class CacheTest {
         Assert.assertFalse(isValueCompressed.get());
         Assert.assertEquals("value-buried", cache.getIfPresent("key-buried"));
         Assert.assertTrue(isValueCompressed.get());
+
+        TimeUnit.SECONDS.sleep(1);
+    }
+
+    @Test
+    public void testCacheImplUsageTrack() throws IOException, ExecutionException, InterruptedException {
+
+        final File temp = Files.createTempDir();
+        final EventBus eventBus = new EventBus();
+        final Serializer<String> strSerializer = Serializers.STRING_SERIALIZER;
+
+        final AtomicReference<Segment> segmentRef = new AtomicReference<Segment>(null);
+        final AtomicReference<BinDocument> documentRef = new AtomicReference<BinDocument>(null);
+
+        final Cache<String, String> cache = CacheBuilder.builder(strSerializer, strSerializer)
+                .local(temp)
+                .eventBus(eventBus)
+                .executor(_executor)
+                .concurrencyLevel(2)
+                .maxSegmentDepth(2)
+                .binDocumentFactory(BinDocumentFactories.RAW)
+                .journalLength(1 << 20)
+                .maxJournals(8)
+                .maxMemoryMappedJournals(2)
+                .persists(false)
+                .evictionStrategy(new EvictionStrategy() {
+
+                    public @Override void afterGet(Segment segment, BinStorage storage, long token, BinDocument doc) {
+
+                    }
+
+                    public @Override void afterPut(Segment segment, BinStorage storage, long token, BinDocument doc) {
+                        segmentRef.set(segment);
+                        documentRef.set(doc);
+                    }
+                })
+                .build();
+
+        Assert.assertNotNull(cache);
+        Assert.assertNull(cache.getIfPresent("key"));
+        Assert.assertEquals("value", cache.get("key", new Callable<String>() {
+            public @Override String call() throws Exception {
+                return "value";
+            }
+        }));
+        Assert.assertEquals("value", cache.getIfPresent("key"));
+
+        final Segment originalSegment = segmentRef.get();
+        final BinDocument originalDocument = documentRef.get();
+        Assert.assertNotNull(originalSegment);
+        Assert.assertNotNull(originalDocument);
+        Assert.assertTrue(originalSegment.using(originalDocument));
+
+        cache.put("key", "value-modified");
+        final Segment segmentAfterOverwrite = segmentRef.get();
+        final BinDocument documentAfterOverwrite = documentRef.get();
+
+        Assert.assertSame(originalSegment, segmentAfterOverwrite);
+        Assert.assertNotSame(originalDocument, documentAfterOverwrite);
+        Assert.assertTrue(segmentAfterOverwrite.using(documentAfterOverwrite));
+        Assert.assertFalse(segmentAfterOverwrite.using(originalDocument));
+
+        cache.invalidate("key");
+
+        final Segment segmentAfterInvalidate = segmentRef.get();
+        final BinDocument documentAfterInvalidate = documentRef.get();
+
+        Assert.assertSame(originalSegment, segmentAfterInvalidate);
+        Assert.assertNotSame(originalDocument, documentAfterInvalidate);
+        Assert.assertTrue(segmentAfterInvalidate.using(documentAfterInvalidate));
+        Assert.assertFalse(segmentAfterInvalidate.using(originalDocument));
+        Assert.assertFalse(segmentAfterInvalidate.using(documentAfterOverwrite));
+
 
         TimeUnit.SECONDS.sleep(1);
     }
