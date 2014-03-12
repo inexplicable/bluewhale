@@ -144,7 +144,7 @@ public class LeafSegment extends AbstractSegment {
             //uses is much like get, in terms of non-blocking nature, even if the segment gets splitted async
             final long token = _tokens.get(getOffset(suspect.getHashCode()));
             try {
-                return token >= 0 && using(suspect.getKey(), token, suspect.getLastModified());
+                return token >= 0 && using(suspect.getKey(), token, suspect.getLastModified(), suspect.getNext());
             }
             catch (IOException e) {
                 LOG.error("usage tracking failed", e);
@@ -181,7 +181,7 @@ public class LeafSegment extends AbstractSegment {
         }
     }
 
-    protected boolean using(final ByteBuffer keyAsBytes, final long token, final long lastModified) throws IOException {
+    protected boolean using(final ByteBuffer keyAsBytes, final long token, final long lastModified, final long next) throws IOException {
 
         final BinStorage storage = getStorage();
         final Serializer keySerializer = getKeySerializer();
@@ -190,7 +190,7 @@ public class LeafSegment extends AbstractSegment {
         //compare their last modified time, if there's newer document than suspect, return using=false, otherwise true
         for(BinDocument doc = storage.read(token); doc != null; doc = storage.read(doc.getNext())){
             if(keySerializer.equals(keyAsBytes, doc.getKey())){
-                return lastModified >= doc.getLastModified();
+                return lastModified >= doc.getLastModified() && next == doc.getNext();
             }
         }
         //shouldn't ever happen, because the document should be compared with itself in the loop above
