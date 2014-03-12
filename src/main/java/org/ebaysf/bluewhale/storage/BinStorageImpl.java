@@ -294,36 +294,44 @@ public class BinStorageImpl implements BinStorage {
         final ImmutableRangeMap.Builder<Integer, BinJournal> navigableBuilder = ImmutableRangeMap.builder();
         final ImmutableRangeSet.Builder<Integer> dangerBuilder = ImmutableRangeSet.builder();
 
-        final Map<Range<Integer>, BinJournal> memoryMappedJournals = Maps.newLinkedHashMap();
+        final Map<Range<Integer>, BinJournal> downgradeCandidates = Maps.newLinkedHashMap();
         //iterate by last modified
         int age = 0, numOfJournals = _navigableJournals.asMapOfRanges().size();
-        for(BinJournal journal : this) {
 
-            //things only get dangerous when the journals are full.
-            if(numOfJournals == _configuration.getMaxJournals()){
+        //things only get dangerous when the journals are full.
+        if(numOfJournals == _configuration.getMaxJournals()){
+            for(BinJournal journal : this) {
                 //at least the oldest journal is considered dangerous.
-                if(age == 0 || (age += 1) < _configuration.getDangerousJournalsRatio() * numOfJournals){
+                if(age == 0){
                     dangerBuilder.add(journal.range());
                 }
-            }
-
-            if(!Objects.equal(previous.range(), journal.range())){
-
-                if(journal.currentState().isMemoryMapped()){
-                    if(!journal.currentState().isWritable()){
-                        memoryMappedJournals.put(journal.range(), journal);
-                    }
+                else if((age += 1) < _configuration.getDangerousJournalsRatio() * numOfJournals){
+                    dangerBuilder.add(journal.range());
                 }
                 else{
-                    navigableBuilder.put(journal.range(), journal);
+                    break;
                 }
             }
         }
 
+        //now we need to examine possible downgrades.
+        for(BinJournal journal : this) {
+            //only ByteBufferReadOnly journals are candidates for downgrades.
+            if(journal.currentState().isMemoryMapped()){
+                if(!journal.currentState().isWritable()){
+                    downgradeCandidates.put(journal.range(), journal);
+                }
+            }
+            //others need go back to _navigableJournals as is. FileChannelReadOnly
+            else{
+                navigableBuilder.put(journal.range(), journal);
+            }
+        }
+
         //check for downgrades
-        int downgrades = memoryMappedJournals.size() - getMaxMemoryMappedJournals() + 1;
-        LOG.info("[storage] downgrades:{} memoryMappedJournals", downgrades);
-        for(Iterator<Map.Entry<Range<Integer>, BinJournal>> it = memoryMappedJournals.entrySet().iterator(); it.hasNext(); downgrades -= 1){
+        int downgrades = downgradeCandidates.size() - getMaxMemoryMappedJournals() + 1/*one for the writable*/;
+        LOG.info("[storage] downgrades:{} {}", downgrades, downgradeCandidates.values());
+        for(Iterator<Map.Entry<Range<Integer>, BinJournal>> it = downgradeCandidates.entrySet().iterator(); it.hasNext(); downgrades -= 1){
 
             final Map.Entry<Range<Integer>, BinJournal> entry = it.next();
             try {

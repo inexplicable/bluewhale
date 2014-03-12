@@ -74,17 +74,25 @@ readseq      :     1.09180 micros/op;  101.3 MB/s
 * From `2` to `4`, which effectively increased the RAM allocation from `1G` to `2G`, the very same benchmark result becomes the following:
 
 ```
-fillseq      :     0.89166 micros/op;  124.1 MB/s
-fillseq      :     1.33815 micros/op;   82.7 MB/s
-fillsync     :     2.36350 micros/op;   46.8 MB/s (10000 ops)
-fillrandom   :     2.06842 micros/op;   53.5 MB/s
-fillseq      :     2.38430 micros/op;   46.4 MB/s
-overwrite    :     1.30755 micros/op;   84.6 MB/s
-fillseq      :     1.50557 micros/op;   73.5 MB/s
-readseq      :     0.41730 micros/op;  265.1 MB/s
-readrandom   :     0.93344 micros/op;  118.5 MB/s
-readrandom   :     0.95614 micros/op;  115.7 MB/s
-readseq      :     0.41751 micros/op;  265.0 MB/s
-readrandom   :     0.96796 micros/op;  114.3 MB/s
-readseq      :     0.42836 micros/op;  258.3 MB/s
+LevelDB:    iq80 leveldb version 0.7
+Date:       Tue Mar 11
+Keys:       16 bytes each
+Values:     100 bytes each (50 bytes after compression)
+Entries:    10000000
+RawSize:    1106.3 MB (estimated)
+FileSize:   629.4 MB (estimated)
+------------------------------------------------
+fillseq      :     0.83689 micros/op;  132.2 MB/s
+fillseq      :     1.30750 micros/op;   84.6 MB/s
+fillsync     :     2.09480 micros/op;   52.8 MB/s (10000 ops)
+fillrandom   :     2.06856 micros/op;   53.5 MB/s
+fillseq      :     2.29767 micros/op;   48.1 MB/s
+overwrite    :     1.35896 micros/op;   81.4 MB/s
+fillseq      :     1.42896 micros/op;   77.4 MB/s
+readseq      :     0.40230 micros/op;  275.0 MB/s
+readrandom   :     0.94043 micros/op;  117.6 MB/s
+readrandom   :     0.94592 micros/op;  117.0 MB/s
+readseq      :     0.39215 micros/op;  282.1 MB/s
+readrandom   :     0.93712 micros/op;  118.0 MB/s
+readseq      :     0.40206 micros/op;  275.2 MB/s
 ```
