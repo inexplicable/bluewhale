@@ -20,18 +20,10 @@ public class PutAsIs implements Put {
                           final V val,
                           final int hashCode) {
 
-        this(key, val, hashCode, System.nanoTime());
-    }
-
-    public <K, V> PutAsIs(final K key,
-                          final V val,
-                          final int hashCode,
-                          final long lastModified) {
-
         _key = key;
         _val = val;
         _hashCode = hashCode;
-        _lastModified = lastModified;
+        _lastModified = System.nanoTime();
     }
 
     public @Override <K> K getKey(final Serializer<K> keySerializer) {

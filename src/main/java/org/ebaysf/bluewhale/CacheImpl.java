@@ -130,7 +130,7 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
         final Segment zone = route(segmentCode);
 
         try {
-            zone.put(new PutAsIs(key, value, hashCode, System.nanoTime()));
+            zone.put(new PutAsIs(key, value, hashCode));
         }
         catch (Exception ex) {
             LOG.error("put failed", ex);
@@ -146,7 +146,7 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
         final Segment zone = route(segmentCode);
 
         try{
-            zone.put(new PutAsInvalidate(key, hashCode, System.nanoTime()));
+            zone.put(new PutAsInvalidate(key, hashCode));
         }
         catch (Exception ex) {
             LOG.error("invalidate failed", ex);
