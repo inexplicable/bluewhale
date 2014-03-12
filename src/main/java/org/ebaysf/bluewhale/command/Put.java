@@ -18,7 +18,16 @@ public interface Put {
 
     <V> ByteBuffer getValAsByteBuffer(final Serializer<V> valSerializer);
 
-    <K, V> BinDocument create(final Serializer<K> keySerializer, final Serializer<V> valSerializer, final long next);
+    /**
+     * Ask Put command to create a BinDocument based on its key, value, hashCode, state information.
+     * @param keySerializer
+     * @param valSerializer
+     * @param next
+     * @return BinDocument
+     */
+    <K, V> BinDocument create(final Serializer<K> keySerializer,
+                              final Serializer<V> valSerializer,
+                              final long next);
 
     int getHashCode();
 

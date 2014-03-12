@@ -2,7 +2,6 @@ package org.ebaysf.bluewhale.storage;
 
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.cache.RemovalCause;
 import com.google.common.collect.*;
@@ -36,10 +35,11 @@ import java.util.concurrent.locks.ReentrantLock;
 public class BinStorageImpl implements BinStorage {
 
     public static final long MASK_OFFSET = -1L >>> (Integer.SIZE + 1);
-    public static final Predicate<BinJournal> JOURNAL_EVICTED = new Predicate<BinJournal>() {
-        @Override
-        public boolean apply(BinJournal input) {
-            return input.currentState().isEvicted();
+    public static final Comparator<BinJournal> ORDER_BY_LAST_MODIFIED = new Comparator<BinJournal>() {
+        public @Override int compare(final BinJournal journalOne, final BinJournal journalTwo) {
+            final long lastModifiedOfJournalOne = journalOne.usage().getLastModified();
+            final long lastModifiedOfJournalTwo = journalTwo.usage().getLastModified();
+            return lastModifiedOfJournalOne == lastModifiedOfJournalTwo ? 0 : (lastModifiedOfJournalOne > lastModifiedOfJournalTwo ? 1 : -1);
         }
     };
 
@@ -163,15 +163,10 @@ public class BinStorageImpl implements BinStorage {
 
     public @Override Iterator<BinJournal> iterator() {
 
-        final List<BinJournal> orderedByLastModified = Lists.newArrayList(_navigableJournals.asMapOfRanges().values());
-
-        Collections.sort(orderedByLastModified, new Comparator<BinJournal>() {
-            public @Override int compare(final BinJournal journalOne, final BinJournal journalTwo) {
-                final long lastModifiedOfJournalOne = journalOne.usage().getLastModified();
-                final long lastModifiedOfJournalTwo = journalTwo.usage().getLastModified();
-                return lastModifiedOfJournalOne == lastModifiedOfJournalTwo ? 0 : (lastModifiedOfJournalOne > lastModifiedOfJournalTwo ? 1 : -1);
-            }
-        });
+        final Set<BinJournal> orderedByLastModified = Sets.newTreeSet(ORDER_BY_LAST_MODIFIED);
+        for(BinJournal journal : _navigableJournals.asMapOfRanges().values()){
+            orderedByLastModified.add(journal);
+        }
 
         LOG.debug("[storage] iteration ordered: {}", orderedByLastModified);
         return orderedByLastModified.iterator();

@@ -80,7 +80,7 @@ public class LeafSegment extends AbstractSegment {
             try{
 
                 _lock.lock();
-
+                //make sure no race condition
                 if(_tokens.get(offset) != head){
                     final V loadedByOthers = getIfPresent(get, offset, head);
                     if(loadedByOthers != null){
@@ -88,6 +88,7 @@ public class LeafSegment extends AbstractSegment {
                     }
                 }
 
+                //really loading the value, and will put as is.
                 final Future<V> value = configuration().getExecutor().submit(get.<V>getValueLoader());
                 final V resolved = value.get();
                 put(new PutAsIs(get.getKey(), resolved, get.getHashCode()));
@@ -141,7 +142,7 @@ public class LeafSegment extends AbstractSegment {
     public @Override boolean using(final BinDocument suspect) {
 
         if(isLeaf()){
-            //uses is much like get, in terms of non-blocking nature, even if the segment gets splitted async
+            //using is much like get, in terms of non-blocking nature, even if the segment gets splitted async
             final long head = _tokens.get(getOffset(suspect.getHashCode()));
             try {
                 return head >= 0 && using(suspect.getKey(), head, suspect.getLastModified(), suspect.getNext());
@@ -242,10 +243,11 @@ public class LeafSegment extends AbstractSegment {
         }
 
         final BinStorage storage = getStorage();
+        final Serializer<Object> keySerializer = getKeySerializer();
+
         //verify normal updates is ok
         for(BinDocument doc = storage.read(next); doc != null; doc = storage.read(doc.getNext())) {
-
-            if(getKeySerializer().equals(put.getKey(getKeySerializer()), doc.getKey())) {
+            if(keySerializer.equals(put.getKey(keySerializer), doc.getKey())) {
                 return put.getLastModified() < doc.getLastModified();//the PUT is created ahead of the existing docs, filter it out
             }
         }
@@ -260,25 +262,25 @@ public class LeafSegment extends AbstractSegment {
      */
     protected void evaluateEffectOfPut(final Put put,
                                        final long next) throws IOException {
-
+        //refresh should have no effect on the data, size shouldn't change, nothing got removed either.
         if(put.refreshes()){
-            return;//refresh should have no effect on the data, size shouldn't change, nothing got removed either.
-        }
-
-        if(next < 0L){
-            _size += put.invalidates() ? 0 : 1;
-            //next token points to no one. size increases if PutAsIs, no change if PutAsInvalidate (users' error tolerated)
             return;
         }
-
+        //next token points to no one. size increases if PutAsIs, no change if PutAsInvalidate (users' error tolerated)
+        if(next < 0L){
+            _size += put.invalidates() ? 0 : 1;
+            return;
+        }
+        //check if the current segment is too narrow to split more.
         final boolean noMoreSplit = range().upperEndpoint() - range().lowerEndpoint() <= _manager.getSpanAtLeast();
 
         final BinStorage storage = getStorage();
-        final Object key = put.getKey(getKeySerializer());
+        final Serializer<Object> keySerializer = getKeySerializer();
+        final Object key = put.getKey(keySerializer);
 
         for(BinDocument doc = storage.read(next); doc != null; doc = storage.read(doc.getNext())){
-
-            if(getKeySerializer().equals(key, doc.getKey())){
+            //once key matches, we'll exit anyway
+            if(keySerializer.equals(key, doc.getKey())){
 
                 if(!put.invalidates() && !doc.isTombstone()){
                     //put overwrites some old value
@@ -343,11 +345,10 @@ public class LeafSegment extends AbstractSegment {
                         groupByKey.put(key, Pair.with(Long.valueOf(nextToken), doc));
                     }
                 }
-
                 //2nd, sweep the filtered documents map again, remove all tombstones, those keys were simply invalidated
                 //3rd, actual split, including size calculations.
                 boolean lowerHeadGiven = false, upperHeadGiven = false;
-                for(Pair<Long, BinDocument> survival : Collections2.filter(groupByKey.values(), _nonTombstonePredicate)){
+                for(Pair<Long, BinDocument> survival : Collections2.filter(groupByKey.values(), NON_TOMBSTONE_PREDICATE)){
                     final int segmentCode = getSegmentCode(survival.getValue1().getHashCode());
                     if(lower.range().contains(segmentCode)){
                         if(!lowerHeadGiven){
@@ -380,7 +381,7 @@ public class LeafSegment extends AbstractSegment {
 
         if(event.getSource() == this){
 
-            LOG.info("[segment] {} => {} & {}", this, _lower, _upper);
+            LOG.info("[segment] {} => {} -- {}", this, _lower, _upper);
             _manager.freeUpBuffer(Pair.with(local(), _mmap));
         }
     }
@@ -466,7 +467,7 @@ public class LeafSegment extends AbstractSegment {
         return new LeafSegment(allocate.getValue0(), range, configuration(), _manager, _storage, allocate.getValue1(), 0);
     }
 
-    protected static final Predicate<Pair<Long, BinDocument>> _nonTombstonePredicate = new Predicate<Pair<Long, BinDocument>>() {
+    protected static final Predicate<Pair<Long, BinDocument>> NON_TOMBSTONE_PREDICATE = new Predicate<Pair<Long, BinDocument>>() {
 
         public @Override boolean apply(final Pair<Long, BinDocument> input) {
             return !input.getValue1().isTombstone();
