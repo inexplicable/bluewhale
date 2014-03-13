@@ -377,6 +377,7 @@ public class LeafSegment extends AbstractSegment {
     }
 
     @Subscribe
+    @AllowConcurrentEvents
     public void onPostSegmentSplit(final PostSegmentSplitEvent event) {
 
         if(event.getSource() == this){
@@ -401,6 +402,7 @@ public class LeafSegment extends AbstractSegment {
     }
 
     @Subscribe
+    @AllowConcurrentEvents
     public void onPathTooLong(final PathTooLongEvent event){
 
         if(event.getSource() != this){
