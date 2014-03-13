@@ -5,6 +5,8 @@ Mainly to address the followings:
 # Minimize dependencies from `Journal` to `Segment` using `UsageTrack` interface.
 # LRU/LRW and more `EvictionStrategy` support with efficiency.
 # Less stress on CPU by reducing the async tasks.
+    * This is closely align with our VM's spec to be exact, we have too many threads already competing for CPU resources, while there're redundant RAM untouched by the JVM waiting for exploration.
+    * The decision is to make a trade-off, using a bit more RAM in a controlled manner, and use cached threadpool instead.
 # Consistent `Segment` routing and `Journal` routing.
 # Simplification over Performance in a lot of cases.
     * Leverage `com.google.common.collect.RangeMap` to route `Segment` and `Journal`.
