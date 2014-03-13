@@ -415,44 +415,44 @@ public class LeafSegment extends AbstractSegment {
             _lock.lock();
 
             final int offset = event.getOffset();
-            final long headTokenExpected = event.getHeadToken();
+            final long originalHeadToken = event.getHeadToken();
 
             long token = _tokens.get(offset);
-            if(token != headTokenExpected){
+            if(token != originalHeadToken){
                 return;//already changed
             }
 
             final BinStorage storage = getStorage();
-            final Set<ByteBuffer> knowns = Sets.newTreeSet(new KeyComparator(getKeySerializer()));
-            final Stack<BinDocument> survivals = new Stack<BinDocument>();
+            final Set<ByteBuffer> uniqueKeys = Sets.newTreeSet(new UniqueKeyComparator(getKeySerializer()));
+            final Stack<BinDocument> actives = new Stack<BinDocument>();
 
             int pathDepth = 0;
-            //go through the path, push 1st met (& none tombstone) as survivals
+            //go through the path, push 1st met (& none tombstone) as actives
             //this will exclude all tombstones, and all obsolete values
             for(BinDocument doc = storage.read(token); doc != null; doc = storage.read(doc.getNext())){
-                if(!knowns.contains(doc.getKey())){
-                    knowns.add(doc.getKey());
-                    if(!doc.isTombstone()){//already removed, no need to rebuild
-                        survivals.add(doc);
-                    }
+                if(uniqueKeys.add(doc.getKey()) && !doc.isTombstone()){
+                    actives.add(doc);
                 }
                 pathDepth += 1;
             }
 
-            //when survivals are less than half of the path depth, this includes a corner case when there's no survivals at all
-            if(survivals.size() < pathDepth / 2){
+            //when actives are less than half of the path depth, this includes a corner case when there's no actives at all
+            if(actives.size() < pathDepth / 2){
                 long next = -1L;
 
                 //note, this is a stack pop, therefore LIFO, not really a must (key dedup happened), but fits better the actual write order
-                while(!survivals.empty()){
-                    final BinDocument survival = survivals.pop();
-                    next = storage.append(new PutAsRefresh(survival.getKey(), survival.getValue(), survival.getHashCode(), survival.getState())
+                while(!actives.empty()){
+                    final BinDocument active = actives.pop();
+                    next = storage.append(new PutAsRefresh(active.getKey(), active.getValue(), active.getHashCode(), active.getState())
                             .create(getKeySerializer(), getValSerializer(), next));
                 }
-                //validate if the headToken is untouched.
-                if(headTokenExpected == _tokens.get(offset)){
-                    _tokens.put(offset, next);
-                }
+                _tokens.put(offset, next);
+
+                LOG.debug("[segment] path shortened at {} from {} to {} with new token: {}", offset, pathDepth, actives.size(), next);
+            }
+            else{
+
+                LOG.debug("[segment] path shorten at {} rejected as it benefits too few from {} to {}", offset, pathDepth, actives.size());
             }
         }
         catch(IOException e){
@@ -476,16 +476,17 @@ public class LeafSegment extends AbstractSegment {
         }
     };
 
-    protected static final class KeyComparator implements Comparator<ByteBuffer> {
+    protected static final class UniqueKeyComparator implements Comparator<ByteBuffer> {
 
         private final Serializer<?> _keySerializer;
 
-        public KeyComparator(final Serializer<?> keySerializer){
+        public UniqueKeyComparator(final Serializer<?> keySerializer){
 
             _keySerializer = keySerializer;
         }
 
         public @Override int compare(final ByteBuffer o1, final ByteBuffer o2) {
+
             if(_keySerializer.equals(o1, o2)){
                 return 0;
             }
