@@ -2,6 +2,7 @@ package org.ebaysf.bluewhale.segment;
 
 import com.google.common.collect.Range;
 import com.google.common.math.DoubleMath;
+import com.google.common.primitives.Longs;
 import org.ebaysf.bluewhale.command.Get;
 import org.ebaysf.bluewhale.command.Put;
 import org.ebaysf.bluewhale.configurable.Configuration;
@@ -21,10 +22,10 @@ import java.util.concurrent.ExecutionException;
 public interface Segment extends UsageTrack {
 
     double SPLIT_THRESHOLD = 0.75d;
-    int SIZE = (1 << 15) * (Long.SIZE / Byte.SIZE);
-    int MASK_OF_OFFSET = -1 >>> 17;// least 15 bits
-    int MAX_TOKENS_IN_ONE_SEGMENT = DoubleMath.roundToInt(Segment.SIZE / Long.SIZE * SPLIT_THRESHOLD, RoundingMode.FLOOR);// number of slots
-    int MAX_SEGMENTS = 1 << 16;
+    int BYTES = (1 << (Short.SIZE - 1)) * Longs.BYTES; //bytes
+    int MASK_OF_OFFSET = -1 >>> (Short.SIZE + 1);//least 15 bits mask
+    int MAX_TOKENS_IN_ONE_SEGMENT = DoubleMath.roundToInt(Segment.BYTES / Longs.BYTES * SPLIT_THRESHOLD, RoundingMode.FLOOR);// number of slots
+    int MAX_SEGMENTS = 1 << Short.SIZE;
 
     Configuration configuration();
 

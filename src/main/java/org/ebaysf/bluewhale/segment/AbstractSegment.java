@@ -157,7 +157,7 @@ public abstract class AbstractSegment implements Segment {
 
     public static int getSegmentCode(final int hashCode) {
 
-        return hashCode >>> 16;//this gives us the highest 16 bits as segment code (int)
+        return hashCode >>> Short.SIZE;//this gives us the highest 16 bits as segment code (int)
     }
 
     public static int getOffset(final int hashCode) {

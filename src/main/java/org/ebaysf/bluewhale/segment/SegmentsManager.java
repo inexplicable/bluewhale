@@ -73,7 +73,7 @@ public class SegmentsManager {
 	protected Pair<File, ByteBuffer> newBuffer() throws IOException {
 
         final File bufferFile = Files.newSegmentFile(_configuration.getLocal(), !_configuration.isPersistent());
-        final ByteBuffer buffer = com.google.common.io.Files.map(bufferFile, FileChannel.MapMode.READ_WRITE, Segment.SIZE);
+        final ByteBuffer buffer = com.google.common.io.Files.map(bufferFile, FileChannel.MapMode.READ_WRITE, Segment.BYTES);
 		resetTokens(buffer.asLongBuffer());
 		return new Pair<File, ByteBuffer>(bufferFile, buffer);
 	}
@@ -83,7 +83,7 @@ public class SegmentsManager {
         if(!_configuration.isPersistent()){
             source.deleteOnExit();
         }
-        final ByteBuffer buffer = com.google.common.io.Files.map(source, FileChannel.MapMode.READ_WRITE, Segment.SIZE);
+        final ByteBuffer buffer = com.google.common.io.Files.map(source, FileChannel.MapMode.READ_WRITE, Segment.BYTES);
         return Pair.with(source, buffer);
     }
 
