@@ -1,4 +1,4 @@
-/**
+package org.ebaysf.bluewhale.benchmark; /**
  * Copyright (C) 2011 the original author or authors.
  * See the notice.md file distributed with this work for additional
  * information regarding copyright ownership.
@@ -155,36 +155,36 @@ public class DbBenchmark
             boolean known = true;
 
             if (benchmark.equals("fillseq")) {
-                //write(new WriteOptions(), Order.SEQUENTIAL, DBState.FRESH, num_, valueSize, 1);
+                //write(new WriteOptions(), org.ebaysf.bluewhale.benchmark.Order.SEQUENTIAL, org.ebaysf.bluewhale.benchmark.DBState.FRESH, num_, valueSize, 1);
                 write(Order.SEQUENTIAL, DBState.FRESH, num_, valueSize, 1);
             }
             else if (benchmark.equals("fillbatch")) {
-                //write(new WriteOptions(), Order.SEQUENTIAL, DBState.FRESH, num_, valueSize, 1000);
+                //write(new WriteOptions(), org.ebaysf.bluewhale.benchmark.Order.SEQUENTIAL, org.ebaysf.bluewhale.benchmark.DBState.FRESH, num_, valueSize, 1000);
                 write( Order.SEQUENTIAL, DBState.FRESH, num_, valueSize, 1000);
             }
             else if (benchmark.equals("fillrandom")) {
-                //write(new WriteOptions(), Order.RANDOM, DBState.FRESH, num_, valueSize, 1);
+                //write(new WriteOptions(), org.ebaysf.bluewhale.benchmark.Order.RANDOM, org.ebaysf.bluewhale.benchmark.DBState.FRESH, num_, valueSize, 1);
                 write( Order.RANDOM, DBState.FRESH, num_, valueSize, 1);
             }
             else if (benchmark.equals("overwrite")) {
-                //write(new WriteOptions(), Order.RANDOM, DBState.EXISTING, num_, valueSize, 1);
+                //write(new WriteOptions(), org.ebaysf.bluewhale.benchmark.Order.RANDOM, org.ebaysf.bluewhale.benchmark.DBState.EXISTING, num_, valueSize, 1);
                 write( Order.SEQUENTIAL, DBState.EXISTING, num_, valueSize, 1);
             }
             else if (benchmark.equals("fillsync")) {
-                //write(new WriteOptions().sync(true), Order.RANDOM, DBState.FRESH, num_ / 1000, valueSize, 1);
+                //write(new WriteOptions().sync(true), org.ebaysf.bluewhale.benchmark.Order.RANDOM, org.ebaysf.bluewhale.benchmark.DBState.FRESH, num_ / 1000, valueSize, 1);
                 write(  Order.RANDOM, DBState.FRESH, num_ / 1000, valueSize, 1);
             }
             else if (benchmark.equals("fill100K")) {
-                //write(new WriteOptions(), Order.RANDOM, DBState.FRESH, num_ / 1000, 100 * 1000, 1);
+                //write(new WriteOptions(), org.ebaysf.bluewhale.benchmark.Order.RANDOM, org.ebaysf.bluewhale.benchmark.DBState.FRESH, num_ / 1000, 100 * 1000, 1);
                 write( Order.RANDOM, DBState.FRESH, num_ / 1000, 100 * 1000, 1);
             }  else if (benchmark.equals("fill1M")) {
-                //write(new WriteOptions(), Order.RANDOM, DBState.FRESH, num_ / 1000, 100 * 1000, 1);
+                //write(new WriteOptions(), org.ebaysf.bluewhale.benchmark.Order.RANDOM, org.ebaysf.bluewhale.benchmark.DBState.FRESH, num_ / 1000, 100 * 1000, 1);
                 write( Order.RANDOM, DBState.FRESH, num_ / 10000, 10*100 * 1000, 1);
             } else if (benchmark.equals("fill10M")) {
-                //write(new WriteOptions(), Order.RANDOM, DBState.FRESH, num_ / 1000, 100 * 1000, 1);
+                //write(new WriteOptions(), org.ebaysf.bluewhale.benchmark.Order.RANDOM, org.ebaysf.bluewhale.benchmark.DBState.FRESH, num_ / 1000, 100 * 1000, 1);
                 write( Order.RANDOM, DBState.FRESH, num_ / 100000, 100*100 * 1000, 1);
             } else if (benchmark.equals("fill100M")) {
-                //write(new WriteOptions(), Order.RANDOM, DBState.FRESH, num_ / 1000, 100 * 1000, 1);
+                //write(new WriteOptions(), org.ebaysf.bluewhale.benchmark.Order.RANDOM, org.ebaysf.bluewhale.benchmark.DBState.FRESH, num_ / 1000, 100 * 1000, 1);
                 write( Order.RANDOM, DBState.FRESH, num_ / 1000000, 100*1000 * 1000, 1);
             } else if (benchmark.equals("readseq")) {
                 readSequential();
@@ -823,7 +823,7 @@ public class DbBenchmark
                 },
 
         // If true, do not destroy the existing database.  If you set this
-        // flag and also specify a benchmark that wants a DBState.FRESH database, that
+        // flag and also specify a benchmark that wants a org.ebaysf.bluewhale.benchmark.DBState.FRESH database, that
         // benchmark will fail.
         use_existing_db(false)
                 {
