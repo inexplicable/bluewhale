@@ -1,6 +1,7 @@
 package org.ebaysf.bluewhale.util;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -8,7 +9,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
-import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Created with IntelliJ IDEA.
@@ -21,19 +22,24 @@ public class Files {
 
     private static final Logger LOG = LoggerFactory.getLogger(Files.class);
 
-    private static final Random _random = new Random(System.currentTimeMillis());
-    
-    public static File newCacheFile(final File dir) throws IOException {
-    	final File cacheFile = new File(dir,
-    			new StringBuilder().append(System.currentTimeMillis()).append('-').append(_random.nextInt()).append(".cold").toString());
+    private static final String TERM = String.valueOf(System.currentTimeMillis());
+    private static final AtomicInteger SEED = new AtomicInteger(0);
+    private static final int PADDING = String.valueOf(Integer.MAX_VALUE).length();
 
+    private static String randomFileName(final String postfix){
+        return new StringBuilder().append(TERM).append('-').append(Strings.padStart(String.valueOf(SEED.getAndIncrement()), PADDING, '0')).append(postfix).toString();
+    }
+
+    public static File newCacheFile(final File dir) throws IOException {
+
+    	final File cacheFile = new File(dir, randomFileName(".cold"));
         cacheFile.createNewFile();
         return cacheFile;
     }
 
     public static File newSegmentFile(final File dir, final boolean deleteOnExit) throws IOException {
-        final File segmentFile = new File(dir,
-                new StringBuilder().append(System.currentTimeMillis()).append('-').append(_random.nextInt()).append(".segment").toString());
+
+        final File segmentFile = new File(dir, randomFileName(".segment"));
 
         Preconditions.checkState(!segmentFile.exists());
         segmentFile.createNewFile();
@@ -46,8 +52,8 @@ public class Files {
     }
 
     public static File newJournalFile(final File dir, final boolean deleteOnExit) throws IOException {
-        final File journalFile = new File(dir,
-                new StringBuilder().append(System.currentTimeMillis()).append('-').append(_random.nextInt()).append(".journal").toString());
+
+        final File journalFile = new File(dir, randomFileName(".journal"));
 
         Preconditions.checkState(!journalFile.exists());
         journalFile.createNewFile();
