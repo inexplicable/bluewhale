@@ -62,7 +62,7 @@ public class LeafSegment extends AbstractSegment {
         //promised! no locking on Get
         if(isLeaf()){
 
-            final int offset = getOffset(get.getHashCode());
+            final int offset = segmentOffset(get.getHashCode());
             final long head = _tokens.get(offset);
             final AbstractCache.StatsCounter statsCounter = get.getStatsCounter();
 
@@ -115,7 +115,7 @@ public class LeafSegment extends AbstractSegment {
             _lock.lock();
             if(isLeaf()){
 
-                final int offset = getOffset(put.getHashCode());
+                final int offset = segmentOffset(put.getHashCode());
                 final long next = _tokens.get(offset);
                 if(isPutObsolete(put, next)){
                     return;//this is because of the background optimization tasks
@@ -143,7 +143,7 @@ public class LeafSegment extends AbstractSegment {
 
         if(isLeaf()){
             //using is much like get, in terms of non-blocking nature, even if the segment gets splitted async
-            final long head = _tokens.get(getOffset(suspect.getHashCode()));
+            final long head = _tokens.get(segmentOffset(suspect.getHashCode()));
             try {
                 return head >= 0 && using(suspect.getKey(), head, suspect.getLastModified(), suspect.getNext());
             }
@@ -349,7 +349,7 @@ public class LeafSegment extends AbstractSegment {
                 //3rd, actual split, including size calculations.
                 boolean lowerHeadGiven = false, upperHeadGiven = false;
                 for(Pair<Long, BinDocument> survival : Collections2.filter(groupByKey.values(), NON_TOMBSTONE_PREDICATE)){
-                    final int segmentCode = getSegmentCode(survival.getValue1().getHashCode());
+                    final int segmentCode = segmentCode(survival.getValue1().getHashCode());
                     if(lower.range().contains(segmentCode)){
                         if(!lowerHeadGiven){
                             lower._tokens.put(offset, survival.getValue0().longValue());
@@ -426,18 +426,18 @@ public class LeafSegment extends AbstractSegment {
             final Set<ByteBuffer> uniqueKeys = Sets.newTreeSet(new UniqueKeyComparator(getKeySerializer()));
             final Stack<BinDocument> actives = new Stack<BinDocument>();
 
-            int pathDepth = 0;
+            int pathLength = 0;
             //go through the path, push 1st met (& none tombstone) as actives
             //this will exclude all tombstones, and all obsolete values
             for(BinDocument doc = storage.read(token); doc != null; doc = storage.read(doc.getNext())){
                 if(uniqueKeys.add(doc.getKey()) && !doc.isTombstone()){
                     actives.add(doc);
                 }
-                pathDepth += 1;
+                pathLength += 1;
             }
 
             //when actives are less than half of the path depth, this includes a corner case when there's no actives at all
-            if(actives.size() < pathDepth / 2){
+            if(actives.size() < pathLength / 2){
                 long next = -1L;
 
                 //note, this is a stack pop, therefore LIFO, not really a must (key dedup happened), but fits better the actual write order
@@ -448,11 +448,11 @@ public class LeafSegment extends AbstractSegment {
                 }
                 _tokens.put(offset, next);
 
-                LOG.debug("[segment] path shortened at {} from {} to {} with new token: {}", offset, pathDepth, actives.size(), next);
+                LOG.debug("[segment] path shortened at {} from {} to {} with new token: {}", offset, pathLength, actives.size(), next);
             }
             else{
 
-                LOG.debug("[segment] path shorten at {} rejected as it benefits too few from {} to {}", offset, pathDepth, actives.size());
+                LOG.debug("[segment] path shorten at {} rejected as it benefits too few from {} to {}", offset, pathLength, actives.size());
             }
         }
         catch(IOException e){

@@ -120,28 +120,28 @@ public abstract class AbstractSegment implements Segment {
 
     public @Override <V> V get(final Get get) throws ExecutionException, IOException {
 
-        return route(getSegmentCode(get.getHashCode())).get(get);
+        return route(segmentCode(get.getHashCode())).get(get);
     }
 
     public @Override void put(Put put) throws IOException {
 
-        route(getSegmentCode(put.getHashCode())).put(put);
+        route(segmentCode(put.getHashCode())).put(put);
     }
 
 
     public @Override boolean using(final BinDocument document) {
 
-        return route(getSegmentCode(document.getHashCode())).using(document);
+        return route(segmentCode(document.getHashCode())).using(document);
     }
 
     public @Override void forget(final BinDocument document, final RemovalCause cause) {
 
-        route(getSegmentCode(document.getHashCode())).forget(document, cause);
+        route(segmentCode(document.getHashCode())).forget(document, cause);
     }
 
     public @Override void refresh(final BinDocument document){
 
-        route(getSegmentCode(document.getHashCode())).refresh(document);
+        route(segmentCode(document.getHashCode())).refresh(document);
     }
 
     public @Override String toString(){
@@ -155,12 +155,12 @@ public abstract class AbstractSegment implements Segment {
                 .append(size()).toString();
     }
 
-    public static int getSegmentCode(final int hashCode) {
+    public static int segmentCode(final int hashCode) {
 
         return hashCode >>> Short.SIZE;//this gives us the highest 16 bits as segment code (int)
     }
 
-    public static int getOffset(final int hashCode) {
+    public static int segmentOffset(final int hashCode) {
 
         return MASK_OF_OFFSET & hashCode;//this gives us the lowest 15 bits as offset
     }
