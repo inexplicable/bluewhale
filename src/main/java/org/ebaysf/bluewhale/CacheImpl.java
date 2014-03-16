@@ -15,6 +15,7 @@ import org.ebaysf.bluewhale.configurable.Configuration;
 import org.ebaysf.bluewhale.document.BinDocument;
 import org.ebaysf.bluewhale.event.*;
 import org.ebaysf.bluewhale.persistence.Gsons;
+import org.ebaysf.bluewhale.segment.AbstractSegment;
 import org.ebaysf.bluewhale.segment.Segment;
 import org.ebaysf.bluewhale.segment.SegmentsManager;
 import org.ebaysf.bluewhale.serialization.Serializer;
@@ -92,7 +93,7 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
         Preconditions.checkArgument(key != null);
 
         final int hashCode = getKeySerializer().hashCode((K)key);
-        final int segmentCode = getSegmentCode(hashCode);
+        final int segmentCode = segmentCode(hashCode);
         final Segment zone = route(segmentCode);
 
         try {
@@ -108,8 +109,8 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
 
         Preconditions.checkArgument(key != null && valueLoader != null);
 
-        final int hashCode = getKeySerializer().hashCode((K) key);
-        final int segmentCode = getSegmentCode(hashCode);
+        final int hashCode = getKeySerializer().hashCode(key);
+        final int segmentCode = segmentCode(hashCode);
         final Segment zone = route(segmentCode);
 
         try {
@@ -125,8 +126,8 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
 
         Preconditions.checkArgument(key != null && value != null);
 
-        final int hashCode = getKeySerializer().hashCode((K)key);
-        final int segmentCode = getSegmentCode(hashCode);
+        final int hashCode = getKeySerializer().hashCode(key);
+        final int segmentCode = segmentCode(hashCode);
         final Segment zone = route(segmentCode);
 
         try {
@@ -142,7 +143,7 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
         Preconditions.checkArgument(key != null);
 
         final int hashCode = getKeySerializer().hashCode((K)key);
-        final int segmentCode = getSegmentCode(hashCode);
+        final int segmentCode = segmentCode(hashCode);
         final Segment zone = route(segmentCode);
 
         try{
@@ -186,27 +187,21 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
 
     public @Override boolean using(final BinDocument document) {
 
-        final int hashCode = document.getHashCode();
-        final int segmentCode = getSegmentCode(hashCode);
-        final Segment zone = route(segmentCode);
+        final Segment zone = route(segmentCode(document.getHashCode()));
 
         return zone.using(document);
     }
 
     public @Override void forget(final BinDocument document, final RemovalCause cause) {
 
-        final int hashCode = document.getHashCode();
-        final int segmentCode = getSegmentCode(hashCode);
-        final Segment zone = route(segmentCode);
+        final Segment zone = route(segmentCode(document.getHashCode()));
 
         zone.forget(document, cause);
     }
 
     public @Override void refresh(final BinDocument document) {
 
-        final int hashCode = document.getHashCode();
-        final int segmentCode = getSegmentCode(hashCode);
-        final Segment zone = route(segmentCode);
+        final Segment zone = route(segmentCode(document.getHashCode()));
 
         zone.refresh(document);
     }
@@ -220,16 +215,15 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
     public void onSegmentSplit(final SegmentSplitEvent event){
 
         final Segment before = event.getSource();
-
         final ImmutableRangeMap.Builder<Integer, Segment> modifying = ImmutableRangeMap.builder();
+
         for(Map.Entry<Range<Integer>, Segment> entry : _navigableSegments.asMapOfRanges().entrySet()){
             if(!Objects.equal(before.range(), entry.getKey())){
                 modifying.put(entry.getKey(), entry.getValue());
             }
         }
 
-        final List<Segment> after = event.after();
-        for(Segment child : after){
+        for(Segment child : event.after()){
             modifying.put(child.range(), child);
         }
 
@@ -260,7 +254,8 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
         }
     }
 
-    public static int getSegmentCode(final int hashCode) {
-        return hashCode >>> 16;//this gives us the highest 16 bits as segment code (int)
+    protected static int segmentCode(final int hashCode) {
+
+        return AbstractSegment.segmentCode(hashCode);
     }
 }
