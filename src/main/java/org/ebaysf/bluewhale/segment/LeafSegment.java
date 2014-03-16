@@ -330,7 +330,7 @@ public class LeafSegment extends AbstractSegment {
 
         for(int offset = 0, len = _tokens.capacity(); offset < len; offset += 1){
             final long token = _tokens.get(offset);
-            if(token >= 0){
+            if(token >= 0L){
                 final Map<Object, Pair<Long, BinDocument>> groupByKey = Maps.newLinkedHashMap();
                 //1st, filter all docs, keeping only the 1st doc of each unique key
                 long nextToken = token;
@@ -343,19 +343,20 @@ public class LeafSegment extends AbstractSegment {
                 }
                 //2nd, sweep the filtered documents map again, remove all tombstones, those keys were simply invalidated
                 //3rd, actual split, including size calculations.
-                boolean lowerHeadGiven = false, upperHeadGiven = false;
-                for(Pair<Long, BinDocument> survival : Collections2.filter(groupByKey.values(), NON_TOMBSTONE_PREDICATE)){
-                    final int segmentCode = segmentCode(survival.getValue1().getHashCode());
+                boolean lowerHeadGiven = false,
+                        upperHeadGiven = false;
+                for(Pair<Long, BinDocument> active : Collections2.filter(groupByKey.values(), NON_TOMBSTONE_PREDICATE)){
+                    final int segmentCode = segmentCode(active.getValue1().getHashCode());
                     if(lower.range().contains(segmentCode)){
                         if(!lowerHeadGiven){
-                            lower._tokens.put(offset, survival.getValue0().longValue());
+                            lower._tokens.put(offset, active.getValue0().longValue());
                             lowerHeadGiven = true;
                         }
                         lower._size += 1;
                     }
                     else if(upper.range().contains(segmentCode)){
                         if(!upperHeadGiven){
-                            upper._tokens.put(offset, survival.getValue0().longValue());
+                            upper._tokens.put(offset, active.getValue0().longValue());
                             upperHeadGiven = true;
                         }
                         upper._size += 1;
@@ -378,7 +379,7 @@ public class LeafSegment extends AbstractSegment {
 
         if(event.getSource() == this){
 
-            LOG.info("[segment] {} => {} -- {}", this, _lower, _upper);
+            LOG.info("[segment] {} => {} - {}", this, _lower, _upper);
             _manager.freeUpBuffer(Pair.with(local(), _mmap));
         }
     }
