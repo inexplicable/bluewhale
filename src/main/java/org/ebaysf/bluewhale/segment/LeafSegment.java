@@ -287,21 +287,17 @@ public class LeafSegment extends AbstractSegment {
                     configuration().getEventBus().post(new RemovalNotificationEvent(doc, RemovalCause.REPLACED));
                 }
                 else if(!put.invalidates() && doc.isTombstone()){
-                    //put is conceptually new
-                    _size += 1;
-
-                    if(!noMoreSplit && _size > MAX_TOKENS_IN_ONE_SEGMENT){
-                        split();
-                    }
+                    //put is conceptually new, jump to the if block to do the same thing.
+                    break;
                 }
                 else if(put.invalidates() && !doc.isTombstone()){
                     //put invalidates some old value
                     configuration().getEventBus().post(new RemovalNotificationEvent(doc, RemovalCause.EXPLICIT));
                 }
-                else{
+                //else{
                     //put.invalidate() && doc.isTombstone()
                     //nothing should happen!
-                }
+                //}
                 return;
             }
         }
