@@ -130,7 +130,7 @@ public class FileChannelBinJournal extends AbstractBinJournal {
 
         private static final int MAX_BLOCK_SIZE = 1 << 16;//64k size block
 
-        private final long _fileLength;
+        private final int _fileLength;
         private final ByteBuffer _block;
 
         private int _offsetAtFile;
@@ -139,52 +139,49 @@ public class FileChannelBinJournal extends AbstractBinJournal {
         public BinDocumentBlockIterator(final int offset) throws IOException{
             _fileLength = getJournalLength();
             //block size must be [anticipatedLength, MAX_BLOCK_SIZE]
-            _block = ByteBuffer.allocate(Math.max(_documentLength90, Math.min(MAX_BLOCK_SIZE, _documentLength90 << 4)));
-
+            _block = ByteBuffer.allocate(Math.max(MAX_BLOCK_SIZE, _documentLength90 << 4));
             _offsetAtFile = offset;
-            _block.limit(Math.min(_block.capacity(), getJournalLength()));
-            _offsetAtFile += _fch.read(_block, offset);
-            _block.rewind();
+
+            fillBlock();
+
             _next = readNext();
         }
 
         private BinDocument readNext(){
             try{
-                final int mark = _block.position();
                 final BinDocumentFactory.BinDocumentReader lookAhead = _block.remaining() >= Longs.BYTES
-                        ? _factory.getReader(_block, mark)
+                        ? _factory.getReader(_block, _block.position())
                         : null;
+
                 if(lookAhead == null){//cannot read 8 bytes, but fch still available
                     if(_offsetAtFile < _fileLength){
-                        refreshBlock(mark);
+                        refreshBlock();
                         return readNext();
                     }
                 }
                 else if(lookAhead.getLength() <= 0){
-                    //odd case, possibly due to uninitialized file region, could calc negative lenght, which caused
+                    //odd case, possibly due to uninitialized file region, could calc negative length, which caused
                     //infinite iterations.
                     return null;
                 }
+                else if(lookAhead.getLength() <= _block.remaining()){//document length within block limit
+                    _block.position(_block.position() + lookAhead.getLength());
+                    return lookAhead.verify();
+                }
                 else if(lookAhead.getLength() > _block.limit()){
-                    //special case, when the document is so long that a single block couldn't hold it
+                    //special case, when the document is so large that a single block couldn't hold it
                     final ByteBuffer enough = ByteBuffer.allocate(lookAhead.getLength());
-                    _offsetAtFile -= _block.limit() - mark;
+                    enough.put(_block);
                     _offsetAtFile += _fch.read(enough, _offsetAtFile);
                     final BinDocument large = _factory.getReader(enough, 0).verify();
                     if(large != null){
-                        _block.rewind();
-                        _offsetAtFile += _fch.read(_block, _offsetAtFile);
-                        _block.rewind();
+                        fillBlock();
                     }
                     return large;
                 }
-                else if(mark + lookAhead.getLength() > _block.limit()){//read 8 bytes, found document length exceed block
-                    refreshBlock(mark);
+                else if(lookAhead.getLength() > _block.remaining()){//read 8 bytes, found document length exceed block
+                    refreshBlock();
                     return readNext();
-                }
-                else if(mark + lookAhead.getLength() <= _block.limit()){//document length within block limit
-                    _block.position(mark + lookAhead.getLength());
-                    return lookAhead.read();
                 }
             }
             catch (IOException e) {
@@ -193,13 +190,35 @@ public class FileChannelBinJournal extends AbstractBinJournal {
             return null;
         }
 
-        protected void refreshBlock(int mark) throws IOException {
+        protected void refreshBlock() throws IOException {
+            final ByteBuffer slice = _block.slice();
+            final int reused = slice.remaining();
             _block.rewind();
-            _offsetAtFile -= _block.limit() - mark;
-            _block.limit(Math.min(_block.capacity(), getJournalLength() - _offsetAtFile));
-            final int read = _fch.read(_block, _offsetAtFile);
-            _offsetAtFile += read;
+            _block.put(slice);
+
+            final int rest = getJournalLength() - _offsetAtFile;
+            if(rest > 0){
+                _block.limit(Math.min(_block.capacity(), rest + reused));
+                _offsetAtFile += _fch.read(_block, _offsetAtFile);
+                _block.rewind();
+            }
+            else{
+                _block.limit(_block.position());
+                _block.rewind();
+            }
+        }
+
+        protected void fillBlock() throws IOException {
             _block.rewind();
+            final int rest = getJournalLength() - _offsetAtFile;
+            if(rest <= 0){
+                _block.limit(0);
+            }
+            else{
+                _block.limit(Math.min(_block.capacity(), rest));
+                _offsetAtFile += _fch.read(_block, _offsetAtFile);
+                _block.rewind();
+            }
         }
 
         public @Override boolean hasNext() {
