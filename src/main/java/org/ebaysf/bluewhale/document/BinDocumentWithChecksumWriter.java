@@ -13,14 +13,15 @@ import java.nio.ByteBuffer;
  * 2. 4 bytes int <=> length of value
  * 3. 8 bytes long <=> next
  * 4. 4 bytes int <=> hashCode
- * 5. byte[length of key] <=> key bytes
- * 6. byte[length of value] <=> value bytes
- * 7. 8 bytes long <=> last modified time
+ * 5. 8 bytes long <=> last modified time
+ * 6. byte[length of key] <=> key bytes
+ * 7. byte[length of value] <=> value bytes
  * 8. 8 bytes long <=> CRC32 checksum
  */
 public class BinDocumentWithChecksumWriter extends BinDocumentRawWriter {
 
     public BinDocumentWithChecksumWriter(final BinDocument doc) {
+
         super(doc);
     }
 
@@ -28,10 +29,6 @@ public class BinDocumentWithChecksumWriter extends BinDocumentRawWriter {
 
         return BinDocumentWithChecksum.getLength(getKey().remaining(), getValue().remaining());
     }
-
-    private static final int MAX_KEY_LENGTH = 1 << (Integer.SIZE - Byte.SIZE);
-    private static final int STATE_SHIFTS = Integer.SIZE - Byte.SIZE;
-    private static final int STATE_AND_KEY_LENGTH_SHIFTS = Integer.SIZE;
 
     public @Override void write(final ByteBuffer buffer,
                                 final int offset) {
@@ -50,6 +47,7 @@ public class BinDocumentWithChecksumWriter extends BinDocumentRawWriter {
         writer.putLong(getLastModified());
         writer.put(key);
         writer.put(val);
+        //additional checksum to complete the write.
         writer.putLong(BinDocumentWithChecksum.getChecksum(buffer, offset, getLength() - BYTES_OF_LONG));
     }
 }

@@ -61,9 +61,9 @@ public class BinDocumentRawWriter implements BinDocumentFactory.BinDocumentWrite
         return _doc.isCompressed();
     }
 
-    private static final int MAX_KEY_LENGTH = 1 << (Integer.SIZE - Byte.SIZE);
-    private static final int STATE_SHIFTS = Integer.SIZE - Byte.SIZE;
-    private static final int STATE_AND_KEY_LENGTH_SHIFTS = Integer.SIZE;
+    protected static final int MAX_KEY_LENGTH = 1 << (Integer.SIZE - Byte.SIZE);
+    protected static final int STATE_SHIFTS = Integer.SIZE - Byte.SIZE;
+    protected static final int STATE_AND_KEY_LENGTH_SHIFTS = Integer.SIZE;
 
     public @Override void write(final ByteBuffer buffer, final int offset) {
 
