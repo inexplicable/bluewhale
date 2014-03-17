@@ -3,6 +3,7 @@ package org.ebaysf.bluewhale.storage;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Range;
+import com.google.common.eventbus.AllowConcurrentEvents;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.math.IntMath;
 import com.google.common.primitives.Longs;
@@ -48,6 +49,7 @@ public class FileChannelBinJournal extends AbstractBinJournal {
         _fch = _raf.getChannel();
 
         if(documentLength90 < 0){
+            _documentLength90 = IntMath.divide(length, size, RoundingMode.CEILING);//use avg for now.
             _manager.getEventBus().register(this);
             _manager.getExecutor().submit(new Runnable() {
                 @Override
@@ -116,6 +118,7 @@ public class FileChannelBinJournal extends AbstractBinJournal {
     }
 
     @Subscribe
+    @AllowConcurrentEvents
     public void onDocumentLengthAnticipated(final DocumentLengthAnticipatedEvent event) {
 
         if(event.getSource() == this){
