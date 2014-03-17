@@ -66,7 +66,7 @@ public class LeafSegment extends AbstractSegment {
             final long head = _tokens.get(offset);
             final AbstractCache.StatsCounter statsCounter = get.getStatsCounter();
 
-            final V hit = getIfPresent(get, offset, head);
+            final V hit = getAsIs(get, offset, head);
             if(hit != null){
                 statsCounter.recordHits(1);
                 return hit;
@@ -82,7 +82,7 @@ public class LeafSegment extends AbstractSegment {
                 _lock.lock();
                 //make sure no race condition
                 if(_tokens.get(offset) != head){
-                    final V loadedByOthers = getIfPresent(get, offset, head);
+                    final V loadedByOthers = getAsIs(get, offset, head);
                     if(loadedByOthers != null){
                         return loadedByOthers;
                     }
@@ -160,7 +160,7 @@ public class LeafSegment extends AbstractSegment {
 
         if(isLeaf()){
             //the document is being evicted, tell user about the removal
-            configuration().getEventBus().post(new RemovalNotificationEvent(obsolete, cause));
+            _configuration.getEventBus().post(new RemovalNotificationEvent(obsolete, cause));
         }
         else{
             super.forget(obsolete, cause);
@@ -202,9 +202,15 @@ public class LeafSegment extends AbstractSegment {
         return false;
     }
 
-    protected <V> V getIfPresent(final Get get,
-                                 final int offset,
-                                 final long head) throws IOException{
+    /**
+     * get value as is at offset without loading
+     * @param get
+     * @param offset
+     * @param head
+     */
+    protected <V> V getAsIs(final Get get,
+                            final int offset,
+                            final long head) throws IOException{
 
         final BinStorage storage = getStorage();
         final Serializer keySerializer = getKeySerializer();
@@ -414,8 +420,8 @@ public class LeafSegment extends AbstractSegment {
             final int offset = event.getOffset();
             final long originalHeadToken = event.getHeadToken();
 
-            long token = _tokens.get(offset);
-            if(token != originalHeadToken){
+            long head = _tokens.get(offset);
+            if(head != originalHeadToken){
                 return;//already changed
             }
 
@@ -426,7 +432,7 @@ public class LeafSegment extends AbstractSegment {
             int pathLength = 0;
             //go through the path, push 1st met (& none tombstone) as actives
             //this will exclude all tombstones, and all obsolete values
-            for(BinDocument doc = storage.read(token); doc != null; doc = storage.read(doc.getNext())){
+            for(BinDocument doc = storage.read(head); doc != null; doc = storage.read(doc.getNext())){
                 if(uniqueKeys.add(doc.getKey()) && !doc.isTombstone()){
                     actives.add(doc);
                 }
@@ -445,7 +451,7 @@ public class LeafSegment extends AbstractSegment {
                 }
                 _tokens.put(offset, next);
 
-                LOG.debug("[segment] path shortened at {} from {} to {} with new token: {}", offset, pathLength, actives.size(), next);
+                LOG.debug("[segment] path shortened at {} from {} to {} with new head: {}", offset, pathLength, actives.size(), next);
             }
             else{
 
