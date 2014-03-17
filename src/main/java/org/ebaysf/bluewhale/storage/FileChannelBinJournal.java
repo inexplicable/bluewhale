@@ -116,7 +116,8 @@ public class FileChannelBinJournal extends AbstractBinJournal {
     }
 
     @Subscribe
-    public void onDocumentLengthAnticipated(final DocumentLengthAnticipatedEvent event){
+    public void onDocumentLengthAnticipated(final DocumentLengthAnticipatedEvent event) {
+
         if(event.getSource() == this){
             _manager.getEventBus().unregister(this);
             _documentLength90 = event.getDocumentLengthAnticipated();
@@ -136,7 +137,8 @@ public class FileChannelBinJournal extends AbstractBinJournal {
         private int _offsetAtFile;
         private BinDocument _next;
 
-        public BinDocumentBlockIterator(final int offset) throws IOException{
+        public BinDocumentBlockIterator(final int offset) throws IOException {
+
             _fileLength = getJournalLength();
             //block size must be [anticipatedLength, MAX_BLOCK_SIZE]
             _block = ByteBuffer.allocate(Math.max(MAX_BLOCK_SIZE, _documentLength90 << 4));
@@ -147,7 +149,8 @@ public class FileChannelBinJournal extends AbstractBinJournal {
             _next = readNext();
         }
 
-        private BinDocument readNext(){
+        private BinDocument readNext() {
+
             try{
                 final BinDocumentFactory.BinDocumentReader lookAhead = _block.remaining() >= Longs.BYTES
                         ? _factory.getReader(_block, _block.position())
@@ -191,6 +194,7 @@ public class FileChannelBinJournal extends AbstractBinJournal {
         }
 
         protected void refreshBlock() throws IOException {
+            //block still has some useful data, must reuse these.
             final ByteBuffer slice = _block.slice();
             final int reused = slice.remaining();
             _block.rewind();
@@ -209,6 +213,7 @@ public class FileChannelBinJournal extends AbstractBinJournal {
         }
 
         protected void fillBlock() throws IOException {
+            //no remaining needed, just read from 0 to block limit
             _block.rewind();
             final int rest = getJournalLength() - _offsetAtFile;
             if(rest <= 0){
@@ -226,9 +231,8 @@ public class FileChannelBinJournal extends AbstractBinJournal {
         }
 
         public @Override BinDocument next() {
-            Preconditions.checkState(_next != null);
 
-            final BinDocument next = _next;
+            final BinDocument next = Preconditions.checkNotNull(_next);
             _next = readNext();
             return next;
         }
