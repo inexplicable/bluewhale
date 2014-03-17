@@ -117,9 +117,6 @@ public class LeafSegment extends AbstractSegment {
 
                 final int offset = segmentOffset(put.getHashCode());
                 final long next = _tokens.get(offset);
-                if(isPutObsolete(put, next)){
-                    return;//this is because of the background optimization tasks
-                }
 
                 final BinStorage storage = getStorage();
                 final BinDocument document = put.create(getKeySerializer(), getValSerializer(), next);
@@ -128,15 +125,15 @@ public class LeafSegment extends AbstractSegment {
 
                 //we must check the size change here, then trigger possible splits
                 evaluateEffectOfPut(put, next);
-
                 _configuration.getEvictionStrategy().afterPut(this, storage, token, document);
-                return;//must return here, otherwise it goes into infinite recursion.
+            }
+            else{
+                super.put(put);
             }
         }
         finally{
             _lock.unlock();
         }
-        super.put(put);
     }
 
     public @Override boolean using(final BinDocument suspect) {
@@ -232,32 +229,6 @@ public class LeafSegment extends AbstractSegment {
                 configuration().getEventBus().post(new PathTooLongEvent(this, offset, head));
             }
         }
-    }
-
-    /**
-     * check if a put should be rejected
-     * @param next
-     * @param put
-     * @return
-     * @throws IOException
-     */
-    protected boolean isPutObsolete(final Put put,
-                                    final long next) throws IOException {
-
-        if(!put.refreshes()){
-            return false;
-        }
-
-        final BinStorage storage = getStorage();
-        final Serializer<Object> keySerializer = getKeySerializer();
-
-        //verify normal updates is ok
-        for(BinDocument doc = storage.read(next); doc != null; doc = storage.read(doc.getNext())) {
-            if(keySerializer.equals(put.getKey(keySerializer), doc.getKey())) {
-                return put.getLastModified() < doc.getLastModified();//the PUT is created ahead of the existing docs, filter it out
-            }
-        }
-        return false;
     }
 
     /**
