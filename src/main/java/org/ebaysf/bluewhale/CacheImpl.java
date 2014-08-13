@@ -27,6 +27,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -242,7 +244,7 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
         final K key = getKeySerializer().deserialize(document.getKey(), false);
 
         _statsCounter.recordEviction();
-        _removalListener.onRemoval(new RemovalNotificationOverBuffer<K, V>(key, document, getValSerializer(), cause));
+        _removalListener.onRemoval(newRemovalNotification(key, getValSerializer().deserialize(document.getValue(), document.isCompressed()), cause));
     }
 
     @Subscribe
@@ -257,5 +259,23 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
     protected static int segmentCode(final int hashCode) {
 
         return AbstractSegment.segmentCode(hashCode);
+    }
+
+    private static Constructor<?> removalNotificationConstructor;
+
+    static {
+        removalNotificationConstructor = RemovalNotification.class.getDeclaredConstructors()[0];
+        removalNotificationConstructor.setAccessible(true);
+    }
+
+    public static <K, V> RemovalNotification<K, V> newRemovalNotification(K key, V val, RemovalCause cause){
+
+        try {
+            return (RemovalNotification<K, V>)removalNotificationConstructor.newInstance(key, val, cause);
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 }
