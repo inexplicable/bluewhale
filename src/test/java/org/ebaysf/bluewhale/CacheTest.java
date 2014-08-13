@@ -25,6 +25,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -275,52 +276,48 @@ public class CacheTest {
         final File temp = Files.createTempDir();
         final EventBus eventBus = new EventBus();
 
-        final Cache<String, String> cache = CacheBuilder.builder(Serializers.STRING_SERIALIZER, Serializers.STRING_SERIALIZER)
+        final Cache<Long, Byte> cache = CacheBuilder.builder(Serializers.LONG_SERIALIZER, Serializers.BYTE_SERIALIZER)
                         .local(temp)
                         .eventBus(eventBus)
                         .executor(_executor)
-                        .concurrencyLevel(3)
-                        .maxSegmentDepth(4)
+                        .concurrencyLevel(4)
+                        .maxSegmentDepth(8)
                         .binDocumentFactory(BinDocumentFactories.RAW)
-                        .journalLength(1 << 20)
+                        .journalLength(1 << 29)
                         .maxJournals(8)
-                        .maxMemoryMappedJournals(2)
+                        .maxMemoryMappedJournals(4)
                         .persists(false)
                         .build();
 
-        final String[] candidates = new String[100000];
-        for(int i = 0; i < candidates.length; i += 1){
-            candidates[i] = Strings.padStart(String.valueOf(i), String.valueOf(candidates.length).length() + 1, '*');//10bytes apprx
-        }
-
         Assert.assertNotNull(cache);
 
-        long begin = System.nanoTime();
-        for(final String c : candidates){
-            Assert.assertNull(cache.getIfPresent(c));
+        final Long[] iterations = new Long[1000000];
+        final Byte[] values = new Byte[iterations.length];
+        final Random r = new Random(System.currentTimeMillis());
+
+        for(int it = 0; it < iterations.length; it += 1){
+            iterations[it] = Long.valueOf(r.nextLong());
+            values[it] = Byte.valueOf((byte)it);
         }
+        long begin = System.nanoTime();
 
-        System.out.printf("[sequential] 1k sized cache, 100bytes key, 100bytes value, getIfPresent took: %dns\n", (System.nanoTime() - begin) / candidates.length);
-
-        begin = System.nanoTime();
-        for(final String c : candidates){
-            Assert.assertEquals(c, cache.get(c, new Callable<String>() {
-                public @Override String call() throws Exception {
-                    return c;
+        for(int it = 0; it < iterations.length; it += 1){
+            final Byte b = values[it];
+            Assert.assertEquals(b, cache.get(iterations[it], new Callable<Byte>() {
+                public @Override Byte call() throws Exception {
+                    return b;
                 }
             }));
         }
 
-        System.out.printf("[sequential] 1k sized cache, 100bytes key, 100bytes value, get took: %dns\n", (System.nanoTime() - begin) / candidates.length);
+        System.out.printf("[sequential] 1M sized cache, 8bytes key, 1bytes value, get took: %dns\n", (System.nanoTime() - begin) / iterations.length);
 
         begin = System.nanoTime();
-        for(final String c : candidates){
-            Assert.assertEquals(c, cache.getIfPresent(c));
+        for(int it = 0; it < iterations.length; it += 1){
+            Assert.assertEquals(values[it], cache.getIfPresent(iterations[it]));
         }
 
-        System.out.printf("[sequential] 1k sized cache, 100bytes key, 100bytes value, getIfPresent took: %dns\n", (System.nanoTime() - begin) / candidates.length);
-
-        Thread.sleep(1000);
+        System.out.printf("[sequential] 1M sized cache, 8bytes key, 1bytes value, getIfPresent took: %dns\n", (System.nanoTime() - begin) / iterations.length);
     }
 
     @Test

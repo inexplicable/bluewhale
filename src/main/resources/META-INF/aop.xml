@@ -1,0 +1,10 @@
+<aspectj>
+    <aspects>
+        <aspect name="org.ebaysf.bluewhale.aspect.RemovalNotificationAspect"/>
+    </aspects>
+    com.google.common.cache
+
+    <weaver options="-verbose">
+
+    </weaver>
+</aspectj>

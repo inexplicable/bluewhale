@@ -23,6 +23,7 @@ import org.ebaysf.bluewhale.storage.BinJournal;
 import org.ebaysf.bluewhale.storage.BinStorage;
 import org.ebaysf.bluewhale.storage.BinStorageImpl;
 import org.ebaysf.bluewhale.storage.UsageTrack;
+import org.ebaysf.bluewhale.util.RemovalNotificationFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -242,7 +243,7 @@ public class CacheImpl <K, V> extends AbstractCache<K, V> implements Cache<K, V>
         final K key = getKeySerializer().deserialize(document.getKey(), false);
 
         _statsCounter.recordEviction();
-        _removalListener.onRemoval(new RemovalNotificationOverBuffer<K, V>(key, document, getValSerializer(), cause));
+        _removalListener.onRemoval(RemovalNotificationFactory.INSTANCE.makeRemovalNotification(key, document, getValSerializer(), cause));
     }
 
     @Subscribe
